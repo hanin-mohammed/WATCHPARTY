@@ -13,6 +13,11 @@ const PORT = process.env.PORT || 3000;
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Catch-all to serve index.html for any other route
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // State management
 const rooms = new Map(); // roomId -> { password, hostId, users: Map(userId -> userData), playbackState, syncSensitivity }
 
