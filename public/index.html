@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncParty - Watch Together</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>Hanha Cinema</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -14,37 +11,75 @@
     <!-- Notifications Container -->
     <div id="notifications-container"></div>
 
-    <!-- Dashboard (Initial Screen) -->
-    <div id="dashboard" class="screen active">
-        <div class="dashboard-panel glass-panel">
-            <h1 class="glow-text">SyncParty</h1>
-            <p class="subtitle">Browser-Based Synchronized Watch Party</p>
+    <!-- UI Flow Screens -->
+    <div id="flow-container" class="screen active">
+        <div class="dashboard-panel glass-panel" id="flow-panel">
+            <h1 class="glow-text">Hanha Cinema</h1>
+            <p class="subtitle">Welcome to your cozy watch party</p>
             
-            <form id="join-form">
-                <div class="input-group">
-                    <label for="username">Display Name</label>
-                    <input type="text" id="username" required placeholder="Enter your name" autocomplete="off">
-                </div>
-                
-                <div class="input-group color-select-group">
-                    <label>Avatar Color</label>
-                    <div class="color-options" id="color-options">
-                        <!-- Colors generated in JS -->
+            <!-- Step 1: User Selection -->
+            <div id="step-user" class="flow-step active">
+                <h2 class="step-title">Who is watching?</h2>
+                <div class="user-cards">
+                    <div class="user-card" data-user="Hanin">
+                        <img src="/assets/avatars/Hanin.png" alt="Hanin" class="user-card-img">
+                        <div class="user-card-name">Hanin</div>
+                    </div>
+                    <div class="user-card" data-user="Manha">
+                        <img src="/assets/avatars/Manha.png" alt="Manha" class="user-card-img">
+                        <div class="user-card-name">Manha</div>
                     </div>
                 </div>
+            </div>
 
-                <div class="input-group">
-                    <label for="room-id">Room ID (Leave blank to create)</label>
-                    <input type="text" id="room-id" placeholder="Optional" autocomplete="off">
+            <!-- Step 2: Role Selection -->
+            <div id="step-role" class="flow-step hidden">
+                <h2 class="step-title">What would you like to do?</h2>
+                <div class="role-cards">
+                    <div class="role-card" id="btn-host">
+                        <div class="role-icon">🎥</div>
+                        <div class="role-title">Host a Room</div>
+                        <div class="role-desc">Create a new watch party</div>
+                    </div>
+                    <div class="role-card" id="btn-join">
+                        <div class="role-icon">🍿</div>
+                        <div class="role-title">Join a Room</div>
+                        <div class="role-desc">Enter an existing watch party</div>
+                    </div>
                 </div>
+            </div>
 
+            <!-- Step 3: Join Room -->
+            <div id="step-join" class="flow-step hidden">
+                <h2 class="step-title">Enter Room Code</h2>
                 <div class="input-group">
-                    <label for="room-password">Room Password</label>
-                    <input type="password" id="room-password" placeholder="Optional">
+                    <input type="text" id="join-room-code" placeholder="e.g. HNC-1234" autocomplete="off" class="text-center-input">
                 </div>
+                <div class="step-actions">
+                    <button class="btn-secondary" id="btn-back-from-join">Back</button>
+                    <button class="btn-primary" id="btn-submit-join">Next</button>
+                </div>
+            </div>
 
-                <button type="submit" class="btn-primary" id="join-btn">Initialize Room</button>
-            </form>
+            <!-- Step 4: Password -->
+            <div id="step-password" class="flow-step hidden">
+                <h2 class="step-title" id="password-title">Enter Room Password</h2>
+                <div class="room-code-display hidden" id="host-room-code-display">
+                    Room Code: <span id="host-code-value" class="mono"></span>
+                </div>
+                <div class="password-digits">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="0">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="1">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="2">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="3">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="4">
+                    <input type="password" class="pwd-digit" maxlength="1" data-index="5">
+                </div>
+                <div class="step-actions">
+                    <button class="btn-secondary" id="btn-back-from-password">Back</button>
+                </div>
+            </div>
+
         </div>
     </div>
 

@@ -1,4 +1,6 @@
-// ui.js
+import re
+
+content = """// ui.js
 import { settings } from './settings.js';
 import { formatBytes } from './utils.js';
 
@@ -274,7 +276,7 @@ export class UIManager {
 
             li.innerHTML = `
                 <div class="user-avatar">
-                    <img src="${avatarSrc}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'/%3E'">
+                    <img src="${avatarSrc}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\'/%3E'">
                 </div>
                 <div class="user-details">
                     <div class="user-name">
@@ -309,3 +311,8 @@ export class UIManager {
              .replace(/'/g, "&#039;");
     }
 }
+"""
+
+with open('public/js/ui.js', 'w') as f:
+    f.write(content)
+
