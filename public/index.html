@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncParty - Watch Together</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+    <!-- Notifications Container -->
+    <div id="notifications-container"></div>
+
+    <!-- Dashboard (Initial Screen) -->
+    <div id="dashboard" class="screen active">
+        <div class="dashboard-panel glass-panel">
+            <h1 class="glow-text">SyncParty</h1>
+            <p class="subtitle">Browser-Based Synchronized Watch Party</p>
+            
+            <form id="join-form">
+                <div class="input-group">
+                    <label for="username">Display Name</label>
+                    <input type="text" id="username" required placeholder="Enter your name" autocomplete="off">
+                </div>
+                
+                <div class="input-group color-select-group">
+                    <label>Avatar Color</label>
+                    <div class="color-options" id="color-options">
+                        <!-- Colors generated in JS -->
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="room-id">Room ID (Leave blank to create)</label>
+                    <input type="text" id="room-id" placeholder="Optional" autocomplete="off">
+                </div>
+
+                <div class="input-group">
+                    <label for="room-password">Room Password</label>
+                    <input type="password" id="room-password" placeholder="Optional">
+                </div>
+
+                <button type="submit" class="btn-primary" id="join-btn">Initialize Room</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Interface -->
+    <div id="app" class="screen">
+        
+        <!-- Top Bar -->
+        <header class="top-bar glass-panel">
+            <div class="left-controls">
+                <div class="room-info">
+                    <span class="label">ROOM:</span> <span id="current-room-id" class="value mono">---</span>
+                </div>
+            </div>
+            <div class="center-controls">
+                <div id="video-info" class="video-info hidden">
+                    <span id="file-name" class="value">No video loaded</span>
+                    <span id="file-size" class="value meta mono"></span>
+                    <span id="file-duration" class="value meta mono"></span>
+                </div>
+                <label for="file-input" class="btn-secondary file-select-btn">
+                    Select Local Video
+                </label>
+                <input type="file" id="file-input" accept="video/mp4,video/webm,video/x-matroska,.mkv,video/quicktime,.mov" class="hidden-input">
+            </div>
+            <div class="right-controls">
+                <div class="connection-status">
+                    <div class="status-indicator" id="status-dot"></div>
+                    <span id="ping-value" class="mono">0ms</span>
+                </div>
+                <button class="icon-btn" id="settings-btn" title="Settings">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            
+            <!-- Video Player Area -->
+            <div class="player-container glass-panel" id="player-wrapper">
+                <div id="drop-zone" class="drop-zone">
+                    <p>Drag and drop local video file here</p>
+                </div>
+                
+                <video id="video-element" class="hidden"></video>
+                
+                <!-- Chat Overlay -->
+                <div class="chat-overlay" id="chat-overlay">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <form id="chat-form" class="chat-input-wrapper">
+                        <input type="text" id="chat-input" placeholder="Type a message... (Enter to send)" autocomplete="off">
+                    </form>
+                </div>
+
+                <!-- Custom Video Controls Overlay -->
+                <div class="video-controls glass-panel" id="video-controls">
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-bar" id="progress-bar">
+                            <div class="progress-filled" id="progress-filled"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="controls-row">
+                        <div class="left-controls">
+                            <button class="icon-btn" id="play-pause-btn">
+                                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </button>
+                            <div class="time-display mono">
+                                <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="center-controls">
+                            <div class="sync-status" id="sync-status">Sync: Idle</div>
+                        </div>
+
+                        <div class="right-controls">
+                            <label class="icon-btn subtitle-btn" title="Load Subtitles">
+                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                <input type="file" id="subtitle-input" accept=".srt,.vtt,.ass" class="hidden-input">
+                            </label>
+                            <select id="playback-speed" class="speed-select btn-secondary">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1.0x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2.0x</option>
+                            </select>
+                            <button class="icon-btn" id="fullscreen-btn">
+                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar (Users & Info) -->
+            <aside class="sidebar glass-panel">
+                <div class="sidebar-header">
+                    <h3>Participants</h3>
+                    <span class="user-count" id="user-count">1</span>
+                </div>
+                <ul class="user-list" id="user-list">
+                    <!-- User items generated in JS -->
+                </ul>
+                
+                <div class="host-controls hidden" id="host-controls">
+                    <h3>Host Controls</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="collab-mode-checkbox">
+                        Collaborative Control
+                    </label>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="settings-modal" class="modal-backdrop hidden">
+        <div class="modal-content glass-panel">
+            <h2>Settings</h2>
+            
+            <div class="settings-section">
+                <h3>Subtitles</h3>
+                <div class="input-group">
+                    <label>Delay (ms)</label>
+                    <input type="number" id="sub-delay" value="0" step="100">
+                </div>
+                <div class="input-group">
+                    <label>Font Size (px)</label>
+                    <input type="number" id="sub-size" value="24" step="1">
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn-primary" id="close-settings">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="hash-warning-modal" class="modal-backdrop hidden">
+        <div class="modal-content glass-panel error-panel">
+            <h2>File Mismatch Detected</h2>
+            <p>Your local video file differs from the host's file.</p>
+            <p>Synchronization may fail or be inaccurate.</p>
+            <div class="mismatch-details mono">
+                <div>Host: <span id="host-hash-display"></span></div>
+                <div>You: <span id="local-hash-display"></span></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary" id="accept-mismatch">Continue Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="/js/main.js"></script>
+</body>
+</html>
