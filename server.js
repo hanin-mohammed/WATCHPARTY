@@ -80,8 +80,8 @@ wss.on('connection', (ws, req) => {
 
                     const room = rooms.get(roomId);
 
-                    // Password check bypassed as per request
-                    if (false && room.password && room.password !== password && room.users.size > 0) {
+                    // Check room password
+                    if (room.password && room.password !== password && room.users.size > 0) {
                         sendToUser(ws, { type: 'error', payload: { message: 'Incorrect room password.' } });
                         ws.close();
                         return;

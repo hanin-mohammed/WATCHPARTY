@@ -284,7 +284,6 @@ export class VideoPlayer {
         let hideTimeout;
         const showControls = () => {
             this.controlsOverlay.classList.add('active');
-            if (this.reactionsBar) this.reactionsBar.classList.add('active');
             if (this.chatOverlay) this.chatOverlay.classList.add('active');
             if (this.messageBar) this.messageBar.classList.add('active');
             this.playerWrapper.style.cursor = 'default';
@@ -296,6 +295,8 @@ export class VideoPlayer {
                     if (document.activeElement === document.getElementById('chat-input')) return;
                     this.controlsOverlay.classList.remove('active');
                     if (this.reactionsBar) this.reactionsBar.classList.remove('active');
+                    const reactionBtn = document.getElementById('reaction-mode-btn');
+                    if (reactionBtn) reactionBtn.classList.remove('active');
                     if (this.chatOverlay) this.chatOverlay.classList.remove('active');
                     if (this.messageBar) this.messageBar.classList.remove('active');
                     this.playerWrapper.style.cursor = 'none';

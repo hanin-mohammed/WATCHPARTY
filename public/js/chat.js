@@ -37,6 +37,40 @@ export class ChatManager {
             this.wakeUpOverlay();
         });
 
+        const reactionBtn = document.getElementById('reaction-mode-btn');
+        const reactionsBar = document.getElementById('reactions-bar');
+        const reactionContainer = document.getElementById('reaction-picker-container');
+
+        if (reactionBtn && reactionsBar) {
+            reactionBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                reactionsBar.classList.toggle('active');
+                reactionBtn.classList.toggle('active');
+            });
+
+            if (reactionContainer) {
+                let hoverTimeout;
+                reactionContainer.addEventListener('mouseenter', () => {
+                    clearTimeout(hoverTimeout);
+                    reactionsBar.classList.add('active');
+                    reactionBtn.classList.add('active');
+                });
+                reactionContainer.addEventListener('mouseleave', () => {
+                    hoverTimeout = setTimeout(() => {
+                        reactionsBar.classList.remove('active');
+                        reactionBtn.classList.remove('active');
+                    }, 350);
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (reactionContainer && !reactionContainer.contains(e.target)) {
+                    reactionsBar.classList.remove('active');
+                    reactionBtn.classList.remove('active');
+                }
+            });
+        }
+
         document.querySelectorAll('.reaction-trigger').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const trigger = e.target.closest('.reaction-trigger');
@@ -60,11 +94,23 @@ export class ChatManager {
     showFloatingEmoji(emoji) {
         const el = document.createElement('div');
         el.className = 'floating-emoji';
-        el.textContent = emoji;
-        // Randomize horizontal start position slightly on the right side
-        const randomX = Math.floor(Math.random() * 60) + 20; 
-        el.style.right = `${randomX}px`;
-        el.style.bottom = '40px';
+        if (emoji === 'three' || emoji === '/assets/emojis/three.png' || (typeof emoji === 'string' && emoji.startsWith('/assets/emojis/') && emoji.endsWith('.png'))) {
+            const img = document.createElement('img');
+            img.src = emoji === 'three' ? '/assets/emojis/three.png' : emoji;
+            img.alt = 'Three';
+            img.style.width = '1em';
+            img.style.height = '1em';
+            img.style.objectFit = 'contain';
+            img.style.pointerEvents = 'none';
+            img.style.display = 'block';
+            el.appendChild(img);
+        } else {
+            el.textContent = emoji;
+        }
+        // Float up from bottom center above toolbar where reactions are triggered
+        const randomX = Math.floor(Math.random() * 30) + 35; 
+        el.style.left = `${randomX}%`;
+        el.style.bottom = '75px';
         
         const container = document.querySelector('.player-content');
         if (container) {
@@ -94,6 +140,15 @@ export class ChatManager {
         this.wakeUpOverlay();
     }
 
+    formatMessageText(msg) {
+        if (!msg) return '';
+        if (msg === 'three' || msg === '/assets/emojis/three.png' || (typeof msg === 'string' && msg.startsWith('/assets/emojis/') && msg.endsWith('.png'))) {
+            const src = msg === 'three' ? '/assets/emojis/three.png' : msg;
+            return `<img src="${src}" alt="Three" style="width: 20px; height: 20px; vertical-align: middle; object-fit: contain; display: inline-block;">`;
+        }
+        return this.escapeHtml(msg);
+    }
+
     appendMessage(data) {
         const createMsgEl = () => {
             const el = document.createElement('div');
@@ -116,7 +171,7 @@ export class ChatManager {
                             <span class="author">${this.escapeHtml(data.username)}</span>
                             <span class="time">${time}</span>
                         </div>
-                        <span class="text" style="font-size: 0.85rem; line-height: 1.3;">${this.escapeHtml(data.message)}</span>
+                        <span class="text" style="font-size: 0.85rem; line-height: 1.3;">${this.formatMessageText(data.message)}</span>
                     </div>
                 </div>
             `;

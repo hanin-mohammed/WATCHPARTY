@@ -34,7 +34,17 @@ export class RoomManager {
             this.users.clear();
             data.users.forEach(u => this.users.set(u.id, u));
             
-            document.getElementById('current-room-id').textContent = this.roomId;
+            const roomIdEl = document.getElementById('current-room-id');
+            const roomIconEl = document.getElementById('room-header-icon');
+            if (roomIdEl) {
+                roomIdEl.textContent = this.roomId;
+                roomIdEl.style.display = 'none';
+            }
+            if (roomIconEl) {
+                roomIconEl.src = `img/stickers/${this.roomId}.png`;
+                roomIconEl.title = `Room: ${this.roomId}`;
+                roomIconEl.style.display = 'block';
+            }
             notifications.show(`Joined room ${this.roomId}`, 'success');
             this.emitChange();
         });

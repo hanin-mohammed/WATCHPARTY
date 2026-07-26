@@ -13,8 +13,7 @@ export class UIManager {
         
         // Steps
         this.stepUser = document.getElementById('step-user');
-        this.stepRole = document.getElementById('step-role');
-        this.stepJoin = document.getElementById('step-join');
+        this.stepStickers = document.getElementById('step-stickers');
         this.stepPassword = document.getElementById('step-password');
         
         // Flow state
@@ -48,29 +47,53 @@ export class UIManager {
         this.setupSettings();
         this.setupRoomListeners();
         this.setupSidebarTabs();
+        this.setupWindowResizeListener();
+    }
+
+    setupWindowResizeListener() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                const chatContainer = document.getElementById('sidebar-chat-messages');
+                const tabChat = document.getElementById('tab-chat');
+                if (chatContainer && tabChat && tabChat.classList.contains('active')) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }, 100);
+        });
     }
 
     setupSidebarTabs() {
         const tabParticipants = document.getElementById('tab-participants');
         const tabChat = document.getElementById('tab-chat');
+        const sidebarTabs = document.querySelector('.sidebar-tabs');
+        const panesContainer = document.getElementById('sidebar-panes-container');
         const paneParticipants = document.getElementById('pane-participants');
         const paneChat = document.getElementById('pane-chat');
 
-        if (tabParticipants && tabChat) {
+        if (tabParticipants && tabChat && panesContainer) {
             tabParticipants.addEventListener('click', () => {
                 tabParticipants.classList.add('active');
                 tabChat.classList.remove('active');
-                paneParticipants.style.display = 'flex';
-                paneChat.style.display = 'none';
+                if (sidebarTabs) sidebarTabs.classList.remove('chat-active');
+                panesContainer.classList.remove('show-chat');
+                if (paneParticipants) paneParticipants.classList.add('active');
+                if (paneChat) paneChat.classList.remove('active');
             });
+
             tabChat.addEventListener('click', () => {
                 tabChat.classList.add('active');
                 tabParticipants.classList.remove('active');
-                paneParticipants.style.display = 'none';
-                paneChat.style.display = 'flex';
+                if (sidebarTabs) sidebarTabs.classList.add('chat-active');
+                panesContainer.classList.add('show-chat');
+                if (paneChat) paneChat.classList.add('active');
+                if (paneParticipants) paneParticipants.classList.remove('active');
                 // Scroll chat to bottom when switching
-                const chatContainer = document.getElementById('sidebar-chat-messages');
-                if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                setTimeout(() => {
+                    const chatContainer = document.getElementById('sidebar-chat-messages');
+                    if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+                }, 50);
             });
         }
     }
@@ -88,12 +111,29 @@ export class UIManager {
     }
 
     showStep(stepEl) {
-        [this.stepUser, this.stepRole, this.stepJoin, this.stepPassword].forEach(el => {
-            el.classList.add('hidden');
-            el.classList.remove('active');
+        [this.stepUser, this.stepStickers].forEach(el => {
+            if (el) {
+                el.classList.add('hidden');
+                el.classList.remove('active');
+            }
         });
-        stepEl.classList.remove('hidden');
-        stepEl.classList.add('active');
+        const flowPanel = document.getElementById('flow-panel');
+        const windowTitle = document.querySelector('#flow-panel .window-title');
+        if (stepEl === this.stepStickers) {
+            if (flowPanel) flowPanel.classList.add('scrapbook-mode');
+            if (windowTitle && this.selectedUser) {
+                windowTitle.textContent = `${this.selectedUser}'s Scrapbook`;
+            }
+        } else {
+            if (flowPanel) flowPanel.classList.remove('scrapbook-mode');
+            if (windowTitle) {
+                windowTitle.textContent = 'Welcome';
+            }
+        }
+        if (stepEl) {
+            stepEl.classList.remove('hidden');
+            stepEl.classList.add('active');
+        }
     }
 
     resetPasswordInputs() {
@@ -117,56 +157,47 @@ export class UIManager {
                     }
                 });
                 document.body.classList.add('theme-' + this.selectedUser.toLowerCase());
-                this.showStep(this.stepRole);
+                this.showStep(this.stepStickers);
             });
         });
 
-        // Step 2: Role
-        document.getElementById('btn-back-from-role').addEventListener('click', () => {
-            this.showStep(this.stepUser);
-        });
+        // Back from Stickers (Switch User)
+        const backBtn = document.getElementById('btn-back-from-stickers');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                this.showStep(this.stepUser);
+            });
+        }
 
-        document.getElementById('btn-host').addEventListener('click', () => {
-            this.role = 'host';
-            this.roomId = 'HNC-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-            document.getElementById('host-room-code-display').classList.remove('hidden');
-            document.getElementById('host-code-value').textContent = this.roomId;
-            this.showStep(this.stepPassword);
-            this.resetPasswordInputs();
-            document.querySelector('.pwd-digit[data-index="0"]').focus();
-        });
+        // Step 2: Scrapbook Sticker Selection -> Room Password
+        document.querySelectorAll('.room-sticker').forEach(sticker => {
+            sticker.addEventListener('click', () => {
+                if (this.isJoining) return;
 
-        document.getElementById('btn-join').addEventListener('click', () => {
-            this.role = 'join';
-            this.showStep(this.stepJoin);
-            document.getElementById('join-room-code').focus();
-        });
+                document.querySelectorAll('.room-sticker').forEach(s => s.classList.remove('selected'));
+                sticker.classList.add('selected');
 
-        // Step 3: Join
-        document.getElementById('btn-back-from-join').addEventListener('click', () => {
-            this.showStep(this.stepRole);
-        });
+                this.roomId = sticker.dataset.room;
+                const roomDisplayEl = document.getElementById('host-room-code-display');
+                const roomValueEl = document.getElementById('host-code-value');
+                if (roomDisplayEl) roomDisplayEl.classList.remove('hidden');
+                if (roomValueEl) roomValueEl.textContent = this.roomId;
 
-        document.getElementById('btn-submit-join').addEventListener('click', () => {
-            const code = document.getElementById('join-room-code').value.trim();
-            if (code.length > 0) {
-                this.roomId = code;
-                document.getElementById('host-room-code-display').classList.add('hidden');
                 this.showStep(this.stepPassword);
                 this.resetPasswordInputs();
-                document.querySelector('.pwd-digit[data-index="0"]').focus();
-            }
+                const firstDigit = document.querySelector('.pwd-digit[data-index="0"]');
+                if (firstDigit) firstDigit.focus();
+            });
         });
 
-        // Step 4: Password
-        document.getElementById('btn-back-from-password').addEventListener('click', () => {
-            this.resetPasswordInputs();
-            if (this.role === 'host') {
-                this.showStep(this.stepRole);
-            } else {
-                this.showStep(this.stepJoin);
-            }
-        });
+        // Step 3: Room Password
+        const backPwdBtn = document.getElementById('btn-back-from-password');
+        if (backPwdBtn) {
+            backPwdBtn.addEventListener('click', () => {
+                this.resetPasswordInputs();
+                this.showStep(this.stepStickers);
+            });
+        }
 
         const digits = Array.from(document.querySelectorAll('.pwd-digit'));
         digits.forEach((input, idx) => {
@@ -240,13 +271,16 @@ export class UIManager {
                 if (data.message === 'Incorrect room password.') {
                     // Shake effect or error
                     const container = document.querySelector('.password-digits');
-                    container.style.transform = 'translateX(-10px)';
-                    setTimeout(() => container.style.transform = 'translateX(10px)', 100);
-                    setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
-                    setTimeout(() => container.style.transform = 'translateX(0)', 300);
+                    if (container) {
+                        container.style.transform = 'translateX(-10px)';
+                        setTimeout(() => container.style.transform = 'translateX(10px)', 100);
+                        setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
+                        setTimeout(() => container.style.transform = 'translateX(0)', 300);
+                    }
                     
                     this.resetPasswordInputs();
-                    document.querySelector('.pwd-digit[data-index="0"]').focus();
+                    const firstDigit = document.querySelector('.pwd-digit[data-index="0"]');
+                    if (firstDigit) firstDigit.focus();
                 }
             });
 
@@ -336,7 +370,17 @@ export class UIManager {
             this.isJoining = false;
             this.flowContainer.classList.remove('active');
             this.appScreen.classList.add('active');
-            document.getElementById('current-room-id').textContent = this.roomId;
+            const roomIdEl = document.getElementById('current-room-id');
+            const roomIconEl = document.getElementById('room-header-icon');
+            if (roomIdEl) {
+                roomIdEl.textContent = this.roomId;
+                roomIdEl.style.display = 'none';
+            }
+            if (roomIconEl) {
+                roomIconEl.src = `img/stickers/${this.roomId}.png`;
+                roomIconEl.title = `Room: ${this.roomId}`;
+                roomIconEl.style.display = 'block';
+            }
             this.renderUserList();
         });
 

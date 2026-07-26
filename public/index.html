@@ -63,47 +63,89 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Role Selection -->
-                <div id="step-role" class="flow-step hidden">
-                    <h2 class="step-title">What would you like to do?</h2>
-                    <div class="role-cards">
-                        <div class="role-card" id="btn-host">
-                            <div class="role-icon">
-                                <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                <!-- Step 2: Scrapbook Room Stickers -->
+                <div id="step-stickers" class="flow-step hidden">
+                    <h2 class="step-title">Choose Your Room</h2>
+                    <p class="subtitle" style="margin-top: -10px; margin-bottom: 8px;">Pick a collectible dessert sticker to join its shared room</p>
+                    
+                    <div class="scrapbook-grid">
+                        <!-- 1. Cheesecake -->
+                        <button type="button" class="room-sticker rot-1" data-room="CHEESECAKE">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/CHEESECAKE.png" alt="Cheesecake" class="sticker-img">
                             </div>
-                            <div class="role-title">Host a Room</div>
-                            <div class="role-desc">Create a new watch party</div>
-                        </div>
-                        <div class="role-card" id="btn-join">
-                            <div class="role-icon">
-                                <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            <div class="sticker-title">Cheesecake</div>
+                        </button>
+
+                        <!-- 2. Dark Chocolate -->
+                        <button type="button" class="room-sticker rot-2" data-room="CHOCOLATE">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/CHOCOLATE.png" alt="Dark Chocolate" class="sticker-img">
                             </div>
-                            <div class="role-title">Join a Room</div>
-                            <div class="role-desc">Enter an existing watch party</div>
-                        </div>
+                            <div class="sticker-title">Dark Chocolate</div>
+                        </button>
+
+                        <!-- 3. Kunafa -->
+                        <button type="button" class="room-sticker rot-3" data-room="KUNAFA">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/KUNAFA.png" alt="Kunafa" class="sticker-img">
+                            </div>
+                            <div class="sticker-title">Kunafa</div>
+                        </button>
+
+                        <!-- 4. Donut -->
+                        <button type="button" class="room-sticker rot-4" data-room="DONUTS">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/DONUTS.png" alt="Donut" class="sticker-img">
+                            </div>
+                            <div class="sticker-title">Donut</div>
+                        </button>
+
+                        <!-- 5. Bueno -->
+                        <button type="button" class="room-sticker rot-5" data-room="KINDER-BUENO">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/KINDER-BUENO.png" alt="Bueno" class="sticker-img">
+                            </div>
+                            <div class="sticker-title">Bueno</div>
+                        </button>
+
+                        <!-- 6. Tiramisu -->
+                        <button type="button" class="room-sticker rot-6" data-room="TIRAMISU">
+                            <div class="glossy-highlight"></div>
+                            <div class="paper-grain"></div>
+                            <div class="sticker-badge"><span>♥ Connected</span></div>
+                            <div class="sticker-icon">
+                                <img src="img/stickers/TIRAMISU.png" alt="Tiramisu" class="sticker-img">
+                            </div>
+                            <div class="sticker-title">Tiramisu</div>
+                        </button>
                     </div>
-                    <div class="step-actions" style="justify-content: flex-start;">
-                        <button class="btn-secondary" id="btn-back-from-role">Back</button>
+
+                    <div class="step-actions" style="justify-content: flex-start; margin-top: 14px;">
+                        <button class="btn-secondary" id="btn-back-from-stickers">← Switch User</button>
                     </div>
                 </div>
 
-                <!-- Step 3: Join Room -->
-                <div id="step-join" class="flow-step hidden">
-                    <h2 class="step-title">Enter Room Code</h2>
-                    <div class="input-group">
-                        <input type="text" id="join-room-code" placeholder="e.g. HNC-1234" autocomplete="off" class="text-center-input">
-                    </div>
-                    <div class="step-actions">
-                        <button class="btn-secondary" id="btn-back-from-join">Back</button>
-                        <button class="btn-primary" id="btn-submit-join">Next</button>
-                    </div>
-                </div>
-
-                <!-- Step 4: Password -->
+                <!-- Step 3: Room Password -->
                 <div id="step-password" class="flow-step hidden">
                     <h2 class="step-title" id="password-title">Enter Room Password</h2>
-                    <div class="room-code-display hidden" id="host-room-code-display">
-                        Room Code: <span id="host-code-value" class="mono"></span>
+                    <div class="room-code-display" id="host-room-code-display" style="margin-top: -10px; margin-bottom: 5px;">
+                        Room: <span id="host-code-value" class="mono"></span>
                     </div>
                     <div class="password-digits">
                         <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="0">
@@ -114,7 +156,7 @@
                         <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="5">
                     </div>
                     <div class="step-actions">
-                        <button class="btn-secondary" id="btn-back-from-password">Back</button>
+                        <button class="btn-secondary" id="btn-back-from-password">← Back to Stickers</button>
                     </div>
                 </div>
 
@@ -128,8 +170,9 @@
         <!-- Top Bar (Taskbar) -->
         <header class="top-bar retro-window">
             <div class="left-controls">
-                <div class="room-info">
-                    <span class="label">ROOM:</span> <span id="current-room-id" class="value mono">---</span>
+                <div class="room-info" id="room-info-badge" title="Current Room" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 2px;">
+                    <img id="room-header-icon" src="" alt="Room Icon" class="room-header-icon" style="width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.22)); display: none; transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                    <span id="current-room-id" class="value mono hidden" style="display: none;">---</span>
                 </div>
             </div>
             <div class="center-controls">
@@ -185,12 +228,7 @@
                     </div>
 
 
-                    <!-- Reactions Bar -->
-                    <div class="reactions-bar retro-window" id="reactions-bar">
-                        <button type="button" class="reaction-trigger icon-btn" data-emoji="❤️" title="Heart">❤️</button>
-                        <button type="button" class="reaction-trigger icon-btn" data-emoji="😂" title="Laugh">😂</button>
-                        <button type="button" class="reaction-trigger icon-btn" data-emoji="😮" title="Wow">😮</button>
-                    </div>
+
 
                     <!-- Custom Video Controls Overlay -->
                     <div class="video-controls retro-window" id="video-controls">
@@ -216,6 +254,25 @@
                             </div>
                             
                             <div class="center-controls">
+                                <div class="reaction-picker-container" id="reaction-picker-container">
+                                    <button class="icon-btn" id="reaction-mode-btn" title="Send a reaction">
+                                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                                    </button>
+                                    <div class="reactions-bar retro-window" id="reactions-bar">
+                                        <button type="button" class="reaction-trigger" data-emoji="❤️" title="Heart">❤️</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="👍" title="Thumbs Up">👍</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="three" title="Three">
+                                            <img src="/assets/emojis/three.png" alt="Three" class="custom-reaction-img">
+                                        </button>
+                                        <button type="button" class="reaction-trigger" data-emoji="🎉" title="Party">🎉</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="👏" title="Clap">👏</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="😂" title="Laugh">😂</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="😮" title="Wow">😮</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="😢" title="Sad">😢</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="🤔" title="Thinking">🤔</button>
+                                        <button type="button" class="reaction-trigger" data-emoji="👎" title="Thumbs Down">👎</button>
+                                    </div>
+                                </div>
                                 <button class="btn-primary" id="ready-toggle-btn" style="background: var(--warning); color: var(--border-color); padding: 4px 12px; margin-right: 12px;">Not Ready</button>
                                 <div class="sync-status" id="sync-status">Sync: Idle</div>
                             </div>
@@ -256,32 +313,35 @@
                         <button class="win-btn close"></button>
                     </div>
                 </div>
-                <div class="window-content sidebar-content" style="padding: 0; display: flex; flex-direction: column;">
+                <div class="window-content sidebar-content">
                     <div class="sidebar-tabs">
                         <button class="sidebar-tab active" id="tab-participants">Participants <span class="user-count" id="user-count">1</span></button>
                         <button class="sidebar-tab" id="tab-chat">Chat</button>
+                        <div class="sidebar-tab-indicator" id="sidebar-tab-indicator"></div>
                     </div>
                     
-                    <div class="sidebar-pane active" id="pane-participants" style="padding: 16px; display: flex; flex-direction: column; flex: 1; overflow: hidden;">
-                        <ul class="user-list" id="user-list">
-                            <!-- User items generated in JS -->
-                        </ul>
-                    
-                        <div class="host-controls hidden" id="host-controls">
-                            <h3>Host Controls</h3>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="collab-mode-checkbox">
-                                <span class="custom-checkbox"></span>
-                                Collaborative Control
-                            </label>
+                    <div class="sidebar-panes-container" id="sidebar-panes-container">
+                        <div class="sidebar-pane active" id="pane-participants">
+                            <ul class="user-list" id="user-list">
+                                <!-- User items generated in JS -->
+                            </ul>
+                        
+                            <div class="host-controls hidden" id="host-controls">
+                                <h3>Host Controls</h3>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="collab-mode-checkbox">
+                                    <span class="custom-checkbox"></span>
+                                    Collaborative Control
+                                </label>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="sidebar-pane" id="pane-chat" style="padding: 16px; display: none; flex-direction: column; flex: 1; overflow: hidden;">
-                        <div class="chat-messages" id="sidebar-chat-messages" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding-right: 4px;"></div>
-                        <form id="chat-form" class="sidebar-chat-form">
-                            <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
-                        </form>
+                        
+                        <div class="sidebar-pane" id="pane-chat">
+                            <div class="chat-messages" id="sidebar-chat-messages"></div>
+                            <form id="chat-form" class="sidebar-chat-form">
+                                <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                            </form>
+                        </div>
                     </div>
                 </div>
             </aside>
