@@ -8,7 +8,8 @@ export class RoomManager {
         this.myId = null;
         this.hostId = null;
         this.users = new Map(); // id -> userData
-        this.collaborative = false;
+        this.collaborative = true;
+        this.ignoredMismatch = null;
         
         this.localState = {
             videoHash: null,
@@ -46,6 +47,15 @@ export class RoomManager {
                 roomIconEl.style.display = 'block';
             }
             notifications.show(`Joined room ${this.roomId}`, 'success');
+            if (this.localState.videoHash) {
+                this.socket.send('update_state', {
+                    videoHash: this.localState.videoHash,
+                    videoSize: this.localState.videoSize,
+                    readyState: this.localState.readyState,
+                    isReady: this.localState.isReady,
+                    subtitleLoaded: this.localState.subtitleLoaded
+                });
+            }
             this.emitChange();
         });
 
@@ -122,6 +132,12 @@ export class RoomManager {
     }
 
     updateLocalState(partialState) {
+        if (partialState.videoHash === null || partialState.videoHash === '') {
+            partialState.isReady = false;
+        }
+        if (partialState.isReady !== undefined && !this.localState.videoHash && !partialState.videoHash) {
+            partialState.isReady = false;
+        }
         Object.assign(this.localState, partialState);
         if (this.roomId) {
             this.socket.send('update_state', partialState);
@@ -153,7 +169,10 @@ export class RoomManager {
         
         if (host && host.videoHash && me && me.videoHash) {
             if (host.videoHash !== me.videoHash) {
-                this.socket.trigger('hash_mismatch', { hostHash: host.videoHash, localHash: me.videoHash });
+                const currentPair = `${host.videoHash}_${me.videoHash}`;
+                if (this.ignoredMismatch !== currentPair) {
+                    this.socket.trigger('hash_mismatch', { hostHash: host.videoHash, localHash: me.videoHash });
+                }
             }
         }
     }

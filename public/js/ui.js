@@ -48,6 +48,26 @@ export class UIManager {
         this.setupRoomListeners();
         this.setupSidebarTabs();
         this.setupWindowResizeListener();
+        this.setupVisibilityListener();
+    }
+
+    getOrCreateUserId() {
+        let uid = sessionStorage.getItem('syncparty_userId');
+        if (!uid) {
+            uid = 'user-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
+            sessionStorage.setItem('syncparty_userId', uid);
+        }
+        return uid;
+    }
+
+    setupVisibilityListener() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (this.socket && (!this.socket.ws || this.socket.ws.readyState !== 1)) {
+                    this.socket.connect();
+                }
+            }
+        });
     }
 
     setupWindowResizeListener() {
@@ -102,16 +122,21 @@ export class UIManager {
         if (settings.get('darkMode')) {
             document.documentElement.classList.add('dark-mode');
         }
+        const toggleHandler = () => {
+            const isDark = document.documentElement.classList.toggle('dark-mode');
+            settings.set('darkMode', isDark);
+        };
         if (this.themeToggleBtn) {
-            this.themeToggleBtn.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.toggle('dark-mode');
-                settings.set('darkMode', isDark);
-            });
+            this.themeToggleBtn.addEventListener('click', toggleHandler);
+        }
+        const welcomeToggle = document.getElementById('welcome-theme-toggle');
+        if (welcomeToggle) {
+            welcomeToggle.addEventListener('click', toggleHandler);
         }
     }
 
     showStep(stepEl) {
-        [this.stepUser, this.stepStickers].forEach(el => {
+        [this.stepUser, this.stepStickers, this.stepPassword].forEach(el => {
             if (el) {
                 el.classList.add('hidden');
                 el.classList.remove('active');
@@ -194,7 +219,9 @@ export class UIManager {
         const backPwdBtn = document.getElementById('btn-back-from-password');
         if (backPwdBtn) {
             backPwdBtn.addEventListener('click', () => {
+                this.isJoining = false;
                 this.resetPasswordInputs();
+                document.querySelectorAll('.room-sticker').forEach(s => s.classList.remove('selected'));
                 this.showStep(this.stepStickers);
             });
         }
@@ -263,7 +290,13 @@ export class UIManager {
                 roomId: this.roomId,
                 password: pwd,
                 username: this.selectedUser,
-                color: this.selectedUser === 'Hanin' ? '#6699ff' : '#9966ff'
+                color: this.selectedUser === 'Hanin' ? '#6699ff' : '#9966ff',
+                userId: this.getOrCreateUserId(),
+                videoHash: this.roomManager.localState.videoHash || null,
+                videoSize: this.roomManager.localState.videoSize || null,
+                readyState: this.roomManager.localState.readyState || 'not_ready',
+                isReady: this.roomManager.localState.isReady || false,
+                subtitleLoaded: this.roomManager.localState.subtitleLoaded || false
             };
             
             // Handle incorrect password from server
@@ -328,9 +361,19 @@ export class UIManager {
             }
         });
 
-        this.acceptMismatchBtn.addEventListener('click', () => {
+        const dismissMismatch = () => {
             this.hashWarningModal.classList.add('hidden');
-        });
+            const host = this.roomManager.getHostUser();
+            const me = this.roomManager.users.get(this.roomManager.myId);
+            if (host && host.videoHash && me && me.videoHash) {
+                this.roomManager.ignoredMismatch = `${host.videoHash}_${me.videoHash}`;
+            }
+        };
+        this.acceptMismatchBtn.addEventListener('click', dismissMismatch);
+        const modalCloseBtn = this.hashWarningModal.querySelector('.win-btn.close');
+        if (modalCloseBtn) {
+            modalCloseBtn.addEventListener('click', dismissMismatch);
+        }
 
         this.leaveRoomBtn = document.getElementById('leave-room-btn');
         if (this.leaveRoomBtn) {
@@ -344,6 +387,10 @@ export class UIManager {
         this.readyToggleBtn = document.getElementById('ready-toggle-btn');
         if (this.readyToggleBtn) {
             this.readyToggleBtn.addEventListener('click', () => {
+                if (!this.roomManager.localState.videoHash) {
+                    notifications.show('Please load a video first', 'warning');
+                    return;
+                }
                 const current = this.roomManager.localState.isReady;
                 this.roomManager.updateLocalState({ isReady: !current });
                 this.readyToggleBtn.textContent = !current ? 'Ready' : 'Not Ready';
@@ -411,22 +458,26 @@ export class UIManager {
     }
 
     renderUserList() {
-        this.userListEl.innerHTML = '';
         const users = Array.from(this.roomManager.users.values());
-        this.userCountEl.textContent = users.length;
+        if (this.userCountEl) this.userCountEl.textContent = users.length;
 
         users.sort((a, b) => {
             if (a.id === this.roomManager.hostId) return -1;
             if (b.id === this.roomManager.hostId) return 1;
             if (a.id === this.roomManager.myId) return -1;
             if (b.id === this.roomManager.myId) return 1;
-            return a.username.localeCompare(b.username);
+            return (a.username || '').localeCompare(b.username || '');
+        });
+
+        const currentIds = new Set(users.map(u => u.id));
+        Array.from(this.userListEl.children).forEach(child => {
+            const uid = child.getAttribute('data-user-id');
+            if (uid && !currentIds.has(uid)) {
+                this.userListEl.removeChild(child);
+            }
         });
 
         users.forEach(user => {
-            const li = document.createElement('li');
-            li.className = 'user-item';
-
             const isHost = user.id === this.roomManager.hostId;
             const isMe = user.id === this.roomManager.myId;
 
@@ -439,61 +490,80 @@ export class UIManager {
             else statusText.push('No video');
 
             if (user.latency > 0) statusText.push(`${user.latency}ms`);
-            
             if (!isHost && user.videoHash && user.syncOffset !== undefined) {
                 statusText.push(`${Math.abs(user.syncOffset)}ms offset`);
             }
-            
-            // Assume the username is Hanin or Manha
-            const avatarSrc = `/assets/avatars/${user.username}.png`;
+            const statusStr = statusText.join(' • ');
+            const userNameHtml = `${this.escapeHtml(user.username)} ${isMe ? '(You)' : ''} ${isHost ? '<span class="host-badge">HOST</span>' : ''}`;
 
-            li.innerHTML = `
-                <div class="user-avatar">
-                    <img src="${avatarSrc}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'/%3E'">
-                </div>
-                <div class="user-details">
-                    <div class="user-name">
-                        ${this.escapeHtml(user.username)} ${isMe ? '(You)' : ''}
-                        ${isHost ? '<span class="host-badge">HOST</span>' : ''}
-                    </div>
-                    <div class="user-status">${statusText.join(' • ')}</div>
-                </div>
-            `;
-            
+            let li = this.userListEl.querySelector(`li[data-user-id="${user.id}"]`);
+            if (!li) {
+                li = document.createElement('li');
+                li.className = 'user-item';
+                li.setAttribute('data-user-id', user.id);
+
+                const avatarSrc = `/assets/avatars/${user.username}.png`;
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'user-avatar';
+                const img = document.createElement('img');
+                img.src = avatarSrc;
+                img.onerror = function() { this.src = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\'/%3E'; };
+                avatarDiv.appendChild(img);
+                li.appendChild(avatarDiv);
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'user-details';
+                detailsDiv.innerHTML = `<div class="user-name"></div><div class="user-status"></div>`;
+                li.appendChild(detailsDiv);
+            }
+
+            const nameEl = li.querySelector('.user-name');
+            const statusEl = li.querySelector('.user-status');
+            if (nameEl && nameEl.innerHTML !== userNameHtml) nameEl.innerHTML = userNameHtml;
+            if (statusEl && statusEl.textContent !== statusStr) statusEl.textContent = statusStr;
+
+            let actionsDiv = li.querySelector('.user-actions');
             if (this.roomManager.isHost() && !isMe) {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'user-actions';
-                actionsDiv.style.display = 'flex';
-                actionsDiv.style.gap = '6px';
+                if (!actionsDiv) {
+                    actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'user-actions';
+                    actionsDiv.style.display = 'flex';
+                    actionsDiv.style.gap = '6px';
 
-                const btnHost = document.createElement('button');
-                btnHost.className = 'icon-btn';
-                btnHost.title = 'Make Host';
-                btnHost.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
-                btnHost.addEventListener('click', () => {
-                    this.socket.send('transfer_host', { newHostId: user.id });
-                });
-                actionsDiv.appendChild(btnHost);
+                    const btnHost = document.createElement('button');
+                    btnHost.className = 'icon-btn';
+                    btnHost.title = 'Make Host';
+                    btnHost.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+                    btnHost.addEventListener('click', () => {
+                        this.socket.send('transfer_host', { newHostId: user.id });
+                    });
+                    actionsDiv.appendChild(btnHost);
 
-                const btnRemove = document.createElement('button');
-                btnRemove.className = 'icon-btn remove-user-btn';
-                btnRemove.title = 'Remove User';
-                btnRemove.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>`;
-                btnRemove.addEventListener('click', () => {
-                    if (confirm(`Are you sure you want to remove ${user.username} from the room?`)) {
-                        this.socket.send('remove_user', { targetUserId: user.id });
-                    }
-                });
-                actionsDiv.appendChild(btnRemove);
-
-                li.appendChild(actionsDiv);
+                    const btnRemove = document.createElement('button');
+                    btnRemove.className = 'icon-btn remove-user-btn';
+                    btnRemove.title = 'Remove User';
+                    btnRemove.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>`;
+                    btnRemove.addEventListener('click', () => {
+                        if (confirm(`Are you sure you want to remove ${user.username} from the room?`)) {
+                            this.socket.send('remove_user', { targetUserId: user.id });
+                        }
+                    });
+                    actionsDiv.appendChild(btnRemove);
+                    li.appendChild(actionsDiv);
+                }
+            } else if (actionsDiv) {
+                actionsDiv.remove();
             }
 
             this.userListEl.appendChild(li);
         });
 
         if (this.readyToggleBtn) {
-            this.readyToggleBtn.style.display = this.roomManager.localState.videoHash ? 'inline-block' : 'none';
+            const hasVideo = Boolean(this.roomManager.localState.videoHash);
+            const isReady = Boolean(hasVideo && this.roomManager.localState.isReady);
+            this.readyToggleBtn.style.display = hasVideo ? 'inline-block' : 'none';
+            this.readyToggleBtn.textContent = isReady ? 'Ready' : 'Not Ready';
+            this.readyToggleBtn.style.background = isReady ? 'var(--success)' : 'var(--warning)';
         }
     }
 

@@ -71,8 +71,12 @@ export class VideoPlayer {
             
             this.currentFile = file;
             let fileToPlay = file;
+            // Safari AVFoundation rejects MKV files masquerading as video/mp4 because EBML headers
+            // do not match MP4 ftyp boxes. However, Safari 14.1+ natively supports video/webm,
+            // which uses the Matroska EBML container format. Serving as video/webm allows WebKit's
+            // EBML parser to process Matroska containers.
             if (file.name.toLowerCase().endsWith('.mkv')) {
-                fileToPlay = new Blob([file], { type: 'video/mp4' });
+                fileToPlay = new Blob([file], { type: 'video/webm' });
             }
             this.objectUrl = URL.createObjectURL(fileToPlay);
             this.video.src = this.objectUrl;
@@ -86,6 +90,7 @@ export class VideoPlayer {
             this.videoInfo.classList.remove('hidden');
             
             this.fileNameEl.textContent = file.name;
+            this.fileNameEl.title = file.name;
             this.fileSizeEl.textContent = formatBytes(file.size);
             
             this.events.dispatchEvent(new CustomEvent('fileLoaded', { detail: { file } }));
@@ -159,6 +164,23 @@ export class VideoPlayer {
             this.toggleFullscreen();
         });
 
+        const updateFullscreenClass = () => {
+            const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+            if (fsEl) {
+                this.playerWrapper.classList.add('is-fullscreen');
+            } else {
+                this.playerWrapper.classList.remove('is-fullscreen');
+            }
+        };
+        document.addEventListener('fullscreenchange', updateFullscreenClass);
+        document.addEventListener('webkitfullscreenchange', updateFullscreenClass);
+        this.video.addEventListener('webkitbeginfullscreen', () => {
+            this.playerWrapper.classList.add('is-fullscreen');
+        });
+        this.video.addEventListener('webkitendfullscreen', () => {
+            this.playerWrapper.classList.remove('is-fullscreen');
+        });
+
         if (this.muteBtn && this.volumeSlider) {
             this.muteBtn.addEventListener('click', () => {
                 this.video.muted = !this.video.muted;
@@ -181,10 +203,17 @@ export class VideoPlayer {
 
         this.isDragging = false;
         
+        const getClientX = (evt) => {
+            if (evt.touches && evt.touches.length > 0) return evt.touches[0].clientX;
+            if (evt.changedTouches && evt.changedTouches.length > 0) return evt.changedTouches[0].clientX;
+            return evt.clientX;
+        };
+
         const updateScrub = (e, triggerSeek = false) => {
             if (!this.video.duration) return;
             const rect = this.progressContainer.getBoundingClientRect();
-            let pos = (e.clientX - rect.left) / rect.width;
+            const clientX = getClientX(e);
+            let pos = (clientX - rect.left) / rect.width;
             pos = Math.max(0, Math.min(1, pos));
             const targetTime = pos * this.video.duration;
             
@@ -236,10 +265,34 @@ export class VideoPlayer {
             }
         });
 
+        this.progressContainer.addEventListener('touchstart', (e) => {
+            this.isDragging = true;
+            this.progressContainer.classList.add('is-dragging');
+            updateScrub(e, false);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (this.isDragging) {
+                if (e.cancelable) e.preventDefault();
+                updateScrub(e, false);
+            }
+        }, { passive: false });
+
+        const endTouchScrub = (e) => {
+            if (this.isDragging) {
+                this.isDragging = false;
+                this.progressContainer.classList.remove('is-dragging');
+                updateScrub(e, true);
+            }
+        };
+        document.addEventListener('touchend', endTouchScrub);
+        document.addEventListener('touchcancel', endTouchScrub);
+
         this.progressContainer.addEventListener('mousemove', (e) => {
             if (!this.video.duration || !this.scrubPreview) return;
             const rect = this.progressContainer.getBoundingClientRect();
-            let pos = (e.clientX - rect.left) / rect.width;
+            const clientX = getClientX(e);
+            let pos = (clientX - rect.left) / rect.width;
             pos = Math.max(0, Math.min(1, pos));
             
             const targetTime = pos * this.video.duration;
@@ -385,9 +438,18 @@ export class VideoPlayer {
             if (this.playerWrapper.requestFullscreen) {
                 this.playerWrapper.requestFullscreen().catch(err => {
                     console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    if (this.video.webkitEnterFullscreen) {
+                        this.video.webkitEnterFullscreen();
+                    } else if (this.video.webkitRequestFullscreen) {
+                        this.video.webkitRequestFullscreen();
+                    }
                 });
             } else if (this.playerWrapper.webkitRequestFullscreen) {
                 this.playerWrapper.webkitRequestFullscreen();
+            } else if (this.video.webkitEnterFullscreen) {
+                this.video.webkitEnterFullscreen();
+            } else if (this.video.webkitRequestFullscreen) {
+                this.video.webkitRequestFullscreen();
             }
         } else {
             if (document.exitFullscreen) {

@@ -52,7 +52,7 @@ wss.on('connection', (ws, req) => {
                     break;
 
                 case 'join_room': {
-                    const { roomId, password, username, color } = payload;
+                    const { roomId, password, username, color, userId, videoHash, videoSize, readyState, isReady, subtitleLoaded } = payload;
                     
                     // If this WebSocket connection is already in this room, ignore duplicate join_room
                     if (currentRoomId === roomId && currentUserId && rooms.has(roomId) && rooms.get(roomId).users.has(currentUserId)) {
@@ -64,17 +64,16 @@ wss.on('connection', (ws, req) => {
                         handleDisconnect();
                     }
 
-                    currentUserId = uuidv4();
                     currentRoomId = roomId;
 
                     if (!rooms.has(roomId)) {
                         // Create room
                         rooms.set(roomId, {
                             password: password || null,
-                            hostId: currentUserId,
+                            hostId: userId || uuidv4(),
                             users: new Map(),
                             playbackState: { playing: false, time: 0, speed: 1, updatedAt: Date.now() },
-                            collaborative: false
+                            collaborative: true
                         });
                     }
 
@@ -87,18 +86,37 @@ wss.on('connection', (ws, req) => {
                         return;
                     }
 
+                    // Prevent duplicates: look for existing user by userId or username
+                    let existingUser = null;
+                    if (userId && room.users.has(userId)) {
+                        existingUser = room.users.get(userId);
+                    } else if (username) {
+                        for (const [uid, u] of room.users.entries()) {
+                            if (u.username === username) {
+                                existingUser = u;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (existingUser && existingUser.ws && existingUser.ws !== ws) {
+                        try { existingUser.ws.close(); } catch(e) {}
+                    }
+
+                    currentUserId = existingUser ? existingUser.id : (userId || uuidv4());
+
                     const userData = {
                         id: currentUserId,
-                        username: username || 'Anonymous',
-                        color: color || '#888888',
-                        readyState: 'not_ready',
-                        isReady: false,
-                        videoHash: null,
-                        videoSize: null,
-                        subtitleLoaded: false,
-                        buffering: false,
-                        latency: 0,
-                        syncOffset: 0,
+                        username: username || (existingUser ? existingUser.username : 'Anonymous'),
+                        color: color || (existingUser ? existingUser.color : '#888888'),
+                        readyState: readyState || (existingUser ? existingUser.readyState : 'not_ready'),
+                        isReady: isReady !== undefined ? isReady : (existingUser ? existingUser.isReady : false),
+                        videoHash: videoHash !== undefined ? videoHash : (existingUser ? existingUser.videoHash : null),
+                        videoSize: videoSize !== undefined ? videoSize : (existingUser ? existingUser.videoSize : null),
+                        subtitleLoaded: subtitleLoaded !== undefined ? subtitleLoaded : (existingUser ? existingUser.subtitleLoaded : false),
+                        buffering: existingUser ? existingUser.buffering : false,
+                        latency: existingUser ? existingUser.latency : 0,
+                        syncOffset: existingUser ? existingUser.syncOffset : 0,
                         ws: ws
                     };
 
@@ -173,16 +191,37 @@ wss.on('connection', (ws, req) => {
                     break;
                 }
 
+                case 'special_effect': {
+                    const room = rooms.get(currentRoomId);
+                    if (room) {
+                        broadcastToRoom(currentRoomId, {
+                            type: 'special_effect',
+                            payload: {
+                                userId: currentUserId,
+                                username: room.users.get(currentUserId).username,
+                                effectType: payload.effectType,
+                                timestamp: Date.now()
+                            }
+                        });
+                    }
+                    break;
+                }
+
                 case 'update_state': {
                     // Update user's local state (hash, ready, buffering, latency)
                     const room = rooms.get(currentRoomId);
                     if (room) {
                         const user = room.users.get(currentUserId);
                         if (user) {
-                            if (payload.videoHash !== undefined) user.videoHash = payload.videoHash;
+                            if (payload.videoHash !== undefined) {
+                                user.videoHash = payload.videoHash;
+                                if (!user.videoHash) user.isReady = false;
+                            }
                             if (payload.videoSize !== undefined) user.videoSize = payload.videoSize;
                             if (payload.readyState !== undefined) user.readyState = payload.readyState;
-                            if (payload.isReady !== undefined) user.isReady = payload.isReady;
+                            if (payload.isReady !== undefined) {
+                                user.isReady = user.videoHash ? payload.isReady : false;
+                            }
                             if (payload.subtitleLoaded !== undefined) user.subtitleLoaded = payload.subtitleLoaded;
                             if (payload.buffering !== undefined) user.buffering = payload.buffering;
                             if (payload.latency !== undefined) user.latency = payload.latency;

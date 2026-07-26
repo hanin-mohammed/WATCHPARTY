@@ -6,6 +6,7 @@ import { SyncEngine } from './sync.js';
 import { ChatManager } from './chat.js';
 import { SubtitleManager } from './subtitles.js';
 import { UIManager } from './ui.js';
+import { SpecialEffectsManager } from './effects.js';
 import { calculateFileHash } from './utils.js';
 import { notifications } from './notifications.js';
 
@@ -27,6 +28,7 @@ function init() {
     const syncEngine = new SyncEngine(player, socket, roomManager, chatManager);
     const subtitleManager = new SubtitleManager(player);
     const uiManager = new UIManager(roomManager, socket);
+    const specialEffects = new SpecialEffectsManager(socket, chatManager);
 
     // Wire up events that cross boundaries
 
@@ -61,7 +63,8 @@ function init() {
             roomManager.updateLocalState({
                 videoHash: null,
                 videoSize: 0,
-                readyState: 'unready'
+                readyState: 'unready',
+                isReady: false
             });
         }
     });

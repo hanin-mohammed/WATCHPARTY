@@ -11,6 +11,7 @@ export class SyncEngine {
         
         this.baseSpeed = 1.0;
         this.isSyncing = false;
+        this.isCorrectingDrift = false;
         
         this.syncStatusEl = document.getElementById('sync-status');
         
@@ -93,16 +94,24 @@ export class SyncEngine {
 
     setupSocketListeners() {
         this.socket.on('sync_playback', (data) => {
-            if (this.roomManager.isHost()) return; // Host ignores sync messages
+            if (data.userId === this.roomManager.myId) return; // Ignore our own sync messages
             
             this.remoteState = data;
             this.baseSpeed = data.speed;
             document.getElementById('playback-speed').value = this.baseSpeed;
+            if (Math.abs(this.player.video.playbackRate - this.baseSpeed) > 0.001) {
+                this.player.setPlaybackRate(this.baseSpeed);
+            }
             
             if (data.action && data.username && this.chatManager) {
                 if (data.action === 'play') this.chatManager.showActionPopup(`${data.username} played`);
                 else if (data.action === 'pause') this.chatManager.showActionPopup(`${data.username} paused at ${this.formatTime(data.time)}`);
                 else if (data.action === 'seek') this.chatManager.showActionPopup(`${data.username} skipped to ${this.formatTime(data.time)}`);
+                else if (data.action === 'speed') this.chatManager.showActionPopup(`${data.username} changed speed to ${data.speed}x`);
+            }
+
+            if (data.action === 'seek' || Math.abs(this.player.video.currentTime - data.time) > 2.0) {
+                this.player.forceSeek(data.time);
             }
 
             // Immediate reaction to major state changes
@@ -160,6 +169,7 @@ export class SyncEngine {
         if (this.roomManager.isHost() || !this.player.currentFile) {
             this.syncStatusEl.textContent = '';
             this.syncStatusEl.style.color = 'var(--text-secondary)';
+            this.isCorrectingDrift = false;
             return;
         }
 
@@ -182,39 +192,52 @@ export class SyncEngine {
         
         this.roomManager.updateLocalState({ syncOffset: Math.round(drift * 1000) });
 
+        const setRateSmoothly = (rate) => {
+            if (Math.abs(this.player.video.playbackRate - rate) > 0.001) {
+                this.player.setPlaybackRate(rate);
+            }
+        };
+
         // If paused, just ensure we are at the right frame
         if (!this.remoteState.playing) {
-            if (Math.abs(drift) > 0.1) {
+            if (Math.abs(drift) > 0.5) {
                 this.player.forceSeek(this.remoteState.time);
             }
-            this.player.setPlaybackRate(this.baseSpeed);
+            setRateSmoothly(this.baseSpeed);
+            this.isCorrectingDrift = false;
             this.syncStatusEl.textContent = 'Sync: Paused';
             this.syncStatusEl.style.color = 'var(--text-secondary)';
             return;
         }
 
-        // We are playing. Apply drift correction.
+        // We are playing. Apply Syncplay-inspired architecture:
+        // - Dead band (0 - 1.2s): do not adjust speed to avoid audio skips
+        // - Hysteresis exit (< 0.5s): stop speed correction once back within 0.5s
+        // - Fast-forward/Slow-down (1.2s - 2.5s): steady +/- 5% rate change
+        // - Major drift (> 2.5s): hard seek
         const absDrift = Math.abs(drift);
-        
-        if (absDrift > 2.0) {
-            // Major drift: Hard seek
+        const MAX_DRIFT_TOLERANCE = 1.2; // 1.2 seconds deadband
+        const SEEK_THRESHOLD = 2.5;      // 2.5 seconds hard seek threshold
+        const HYSTERESIS_EXIT = 0.5;     // 0.5 seconds exit threshold
+
+        if (absDrift > SEEK_THRESHOLD) {
+            // Major desync: Hard seek
             this.player.forceSeek(expectedTime);
-            this.player.setPlaybackRate(this.baseSpeed);
+            setRateSmoothly(this.baseSpeed);
+            this.isCorrectingDrift = false;
             this.syncStatusEl.textContent = 'Sync: Seeking...';
             this.syncStatusEl.style.color = 'var(--warning)';
-        } else if (absDrift > 0.05) {
-            // Minor drift: Adjust speed smoothly
-            // If drift is positive, we are behind, speed up.
-            // Max speed adjustment is 10% (0.1)
-            let adjustment = drift * 0.5; // proportional gain
-            adjustment = Math.max(-0.2, Math.min(0.2, adjustment));
-            
-            this.player.setPlaybackRate(this.baseSpeed + adjustment);
+        } else if (absDrift > MAX_DRIFT_TOLERANCE || (this.isCorrectingDrift && absDrift > HYSTERESIS_EXIT)) {
+            // Minor desync: Gentle speed adjustment (Syncplay fast-forward / slow-down)
+            this.isCorrectingDrift = true;
+            const targetSpeed = drift > 0 ? this.baseSpeed * 1.05 : this.baseSpeed * 0.95;
+            setRateSmoothly(targetSpeed);
             this.syncStatusEl.textContent = `Sync: Drift ${(drift*1000).toFixed(0)}ms`;
             this.syncStatusEl.style.color = 'var(--accent)';
         } else {
-            // Perfect sync
-            this.player.setPlaybackRate(this.baseSpeed);
+            // Within tolerance: Normal playback speed without stutters
+            this.isCorrectingDrift = false;
+            setRateSmoothly(this.baseSpeed);
             this.syncStatusEl.textContent = 'Sync: Perfect';
             this.syncStatusEl.style.color = 'var(--success)';
         }
@@ -223,7 +246,7 @@ export class SyncEngine {
     isEveryoneReady() {
         if (!this.roomManager.users || this.roomManager.users.size === 0) return false;
         for (const user of this.roomManager.users.values()) {
-            if (!user.isReady) return false;
+            if (!user.videoHash || !user.isReady) return false;
         }
         return true;
     }

@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Hanha Cinema</title>
     <script>
         try {
@@ -20,25 +22,76 @@
 <body class="theme-loader">
 
     <!-- Retro Desktop Background Decorations -->
-    <div class="desktop-decorations">
-        <!-- Floating hearts/stars scattered around via CSS -->
+    <div class="desktop-decorations" aria-hidden="true">
+        <div class="pattern-track track-1">
+            <span class="pattern-item">🍿</span>
+            <img src="img/stickers/DONUTS.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎬</span>
+            <img src="img/stickers/CHEESECAKE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎟️</span>
+            <img src="img/stickers/CHOCOLATE.png" class="pattern-img" alt="">
+            <span class="pattern-item">⭐</span>
+            <img src="img/stickers/TIRAMISU.png" class="pattern-img" alt="">
+            <span class="pattern-item">🥤</span>
+            <img src="img/stickers/KINDER-BUENO.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎶</span>
+            <img src="img/stickers/KUNAFA.png" class="pattern-img" alt="">
+            <!-- Duplicate for seamless infinite loop -->
+            <span class="pattern-item">🍿</span>
+            <img src="img/stickers/DONUTS.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎬</span>
+            <img src="img/stickers/CHEESECAKE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎟️</span>
+            <img src="img/stickers/CHOCOLATE.png" class="pattern-img" alt="">
+            <span class="pattern-item">⭐</span>
+            <img src="img/stickers/TIRAMISU.png" class="pattern-img" alt="">
+            <span class="pattern-item">🥤</span>
+            <img src="img/stickers/KINDER-BUENO.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎶</span>
+            <img src="img/stickers/KUNAFA.png" class="pattern-img" alt="">
+        </div>
+        <div class="pattern-track track-2">
+            <img src="img/stickers/TIRAMISU.png" class="pattern-img" alt="">
+            <span class="pattern-item">❤️</span>
+            <img src="img/stickers/KUNAFA.png" class="pattern-img" alt="">
+            <span class="pattern-item">✨</span>
+            <img src="img/stickers/DONUTS.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎉</span>
+            <img src="img/stickers/CHOCOLATE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🌙</span>
+            <img src="img/stickers/CHEESECAKE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎈</span>
+            <img src="img/stickers/KINDER-BUENO.png" class="pattern-img" alt="">
+            <span class="pattern-item">🌟</span>
+            <!-- Duplicate for seamless infinite loop -->
+            <img src="img/stickers/TIRAMISU.png" class="pattern-img" alt="">
+            <span class="pattern-item">❤️</span>
+            <img src="img/stickers/KUNAFA.png" class="pattern-img" alt="">
+            <span class="pattern-item">✨</span>
+            <img src="img/stickers/DONUTS.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎉</span>
+            <img src="img/stickers/CHOCOLATE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🌙</span>
+            <img src="img/stickers/CHEESECAKE.png" class="pattern-img" alt="">
+            <span class="pattern-item">🎈</span>
+            <img src="img/stickers/KINDER-BUENO.png" class="pattern-img" alt="">
+            <span class="pattern-item">🌟</span>
+        </div>
     </div>
 
     <!-- Notifications Container -->
     <div id="notifications-container"></div>
     
-    <!-- Theme Toggle -->
-    <button id="theme-toggle" class="icon-btn theme-toggle" title="Toggle Dark Mode">
-        <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-        <svg class="moon-icon hidden" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-    </button>
-
     <!-- UI Flow Screens -->
     <div id="flow-container" class="screen active">
         <div class="dashboard-panel retro-window" id="flow-panel">
             <div class="window-title-bar">
                 <span class="window-title">Welcome</span>
                 <div class="window-controls">
+                    <button id="welcome-theme-toggle" class="win-btn theme-toggle" title="Toggle Dark Mode" style="background: transparent; border: none; cursor: pointer; padding: 0 4px; display: inline-flex; align-items: center; color: currentColor;">
+                        <svg class="sun-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg class="moon-icon hidden" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </button>
                     <button class="win-btn minimize"></button>
                     <button class="win-btn maximize"></button>
                     <button class="win-btn close"></button>
@@ -194,6 +247,10 @@
                     <div class="status-indicator" id="status-dot"></div>
                     <span id="ping-value" class="mono">0ms</span>
                 </div>
+                <button id="theme-toggle" class="icon-btn theme-toggle" title="Toggle Dark Mode">
+                    <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="moon-icon hidden" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
                 <button class="icon-btn" id="settings-btn" title="Settings">
                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
@@ -272,6 +329,14 @@
                                         <button type="button" class="reaction-trigger" data-emoji="🤔" title="Thinking">🤔</button>
                                         <button type="button" class="reaction-trigger" data-emoji="👎" title="Thumbs Down">👎</button>
                                     </div>
+                                </div>
+                                <div class="special-buzzers-container">
+                                    <button class="icon-btn special-buzzer-btn golden-buzzer-btn" id="golden-buzzer-btn" title="Golden Buzzer - Celebrate an amazing scene!">
+                                        <img src="/img/buzzers/golden-buzzer.png" alt="Golden Buzzer" class="buzzer-icon-img">
+                                    </button>
+                                    <button class="icon-btn special-buzzer-btn rotten-tomato-btn" id="rotten-tomato-btn" title="Rotten Tomato - Celebrate a terrible scene!">
+                                        <img src="/img/buzzers/rotten-tomato.png" alt="Rotten Tomato" class="buzzer-icon-img">
+                                    </button>
                                 </div>
                                 <button class="btn-primary" id="ready-toggle-btn" style="background: var(--warning); color: var(--border-color); padding: 4px 12px; margin-right: 12px;">Not Ready</button>
                                 <div class="sync-status" id="sync-status">Sync: Idle</div>
