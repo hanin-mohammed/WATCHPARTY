@@ -1,5 +1,6 @@
 // player.js
 import { formatTime, formatBytes } from './utils.js';
+import { notifications } from './notifications.js';
 
 class RecentFilesDB {
     constructor() {
@@ -57,6 +58,21 @@ class RecentFilesDB {
             }
         } catch (err) {
             console.warn('Could not save recent file to IndexedDB:', err);
+        }
+    }
+
+    async deleteFile(id) {
+        try {
+            const db = await this.getDB();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                const store = tx.objectStore(this.storeName);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = (e) => reject(e.target.error);
+            });
+        } catch (err) {
+            console.warn('Could not delete recent file:', err);
         }
     }
 
@@ -147,12 +163,25 @@ export class VideoPlayer {
     }
 
     setupFileHandling() {
-        const handleFile = (file) => {
-            if (!file) return;
+        const handleFile = async (file, isFromRecent = false) => {
+            if (!file) {
+                if (isFromRecent) {
+                    notifications.show('File no longer exists', 'error');
+                }
+                return;
+            }
             this.handleFileCallback = handleFile;
             const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mkv|mov|avi|m4v)$/i);
             if (!isVideo) return;
             
+            try {
+                await file.slice(0, 1).arrayBuffer();
+            } catch (err) {
+                console.warn('File no longer exists or cannot be read:', err);
+                notifications.show('File no longer exists', 'error');
+                return;
+            }
+
             if (this.objectUrl) {
                 URL.revokeObjectURL(this.objectUrl);
             }
@@ -187,6 +216,7 @@ export class VideoPlayer {
             
             this.events.dispatchEvent(new CustomEvent('fileLoaded', { detail: { file } }));
         };
+        this.handleFileCallback = handleFile;
 
         this.fileInput.addEventListener('change', (e) => {
             handleFile(e.target.files[0]);
@@ -262,12 +292,35 @@ export class VideoPlayer {
                 <div class="recent-video-name">${record.name}</div>
                 <div class="recent-video-size">${formatBytes(record.size)}</div>
             `;
-            li.addEventListener('click', () => {
-                if (record.file && this.handleFileCallback) {
-                    this.handleFileCallback(record.file);
-                    if (this.recentDropdown) {
-                        this.recentDropdown.classList.add('hidden');
+            li.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (this.recentDropdown) {
+                    this.recentDropdown.classList.add('hidden');
+                }
+
+                if (!record.file || typeof record.file.slice !== 'function') {
+                    notifications.show('File no longer exists', 'error');
+                    if (this.recentFilesDB && record.id) {
+                        await this.recentFilesDB.deleteFile(record.id);
+                        this.refreshRecentFilesUI();
                     }
+                    return;
+                }
+
+                try {
+                    await record.file.slice(0, 1).arrayBuffer();
+                } catch (err) {
+                    console.warn('Could not read recent file:', err);
+                    notifications.show('File no longer exists', 'error');
+                    if (this.recentFilesDB && record.id) {
+                        await this.recentFilesDB.deleteFile(record.id);
+                        this.refreshRecentFilesUI();
+                    }
+                    return;
+                }
+
+                if (this.handleFileCallback) {
+                    this.handleFileCallback(record.file, true);
                 }
             });
             this.recentListEl.appendChild(li);

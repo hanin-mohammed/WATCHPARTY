@@ -12,6 +12,9 @@ export class SyncEngine {
         this.baseSpeed = 1.0;
         this.isSyncing = false;
         this.isCorrectingDrift = false;
+        this.isApplyingRemoteState = false;
+        this.lastLocalActionTime = 0;
+        this._remoteStateTimeout = null;
         
         this.syncStatusEl = document.getElementById('sync-status');
         
@@ -32,7 +35,7 @@ export class SyncEngine {
         // Periodic broadcast for host
         this.throttledHostBroadcast = throttle(() => this.broadcastHostState(), 500);
         setInterval(() => {
-            if (this.roomManager.isHost() && this.player.video.readyState >= 2) {
+            if (this.roomManager.isHost() && this.player.video && this.player.video.readyState >= 2 && !this.isApplyingRemoteState) {
                 this.throttledHostBroadcast();
             }
         }, 1000);
@@ -41,12 +44,13 @@ export class SyncEngine {
     setupPlayerListeners() {
         // User intends to change state (only allow if host or collab)
         this.player.events.addEventListener('userPlay', () => {
-            if (this.roomManager.canControl()) {
+            if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
                 if (!this.isEveryoneReady()) {
                     notifications.show('Cannot play until everyone is ready', 'warning');
                     this.player.forcePause();
                     return;
                 }
+                this.lastLocalActionTime = Date.now();
                 this.player.forcePlay();
                 this.broadcastHostState('play');
                 this.showLocalActionPopup('played');
@@ -54,7 +58,8 @@ export class SyncEngine {
         });
 
         this.player.events.addEventListener('userPause', () => {
-            if (this.roomManager.canControl()) {
+            if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
+                this.lastLocalActionTime = Date.now();
                 this.player.forcePause();
                 this.broadcastHostState('pause');
                 this.showLocalActionPopup(`paused at ${this.formatTime(this.player.video.currentTime)}`);
@@ -62,7 +67,8 @@ export class SyncEngine {
         });
 
         this.player.events.addEventListener('userSeek', (e) => {
-            if (this.roomManager.canControl()) {
+            if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
+                this.lastLocalActionTime = Date.now();
                 this.player.forceSeek(e.detail.time);
                 this.broadcastHostState('seek', e.detail.time);
                 this.showLocalActionPopup(`skipped to ${this.formatTime(e.detail.time)}`);
@@ -70,7 +76,8 @@ export class SyncEngine {
         });
 
         this.player.events.addEventListener('userSpeedChange', (e) => {
-            if (this.roomManager.canControl()) {
+            if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
+                this.lastLocalActionTime = Date.now();
                 this.baseSpeed = e.detail.speed;
                 this.player.setPlaybackRate(this.baseSpeed);
                 this.broadcastHostState('speed');
@@ -85,9 +92,14 @@ export class SyncEngine {
             this.roomManager.updateLocalState({ buffering: e.detail.buffering });
         });
         
-        this.player.events.addEventListener('stateChange', () => {
-            if (this.roomManager.isHost()) {
-                this.broadcastHostState();
+        this.player.events.addEventListener('stateChange', (e) => {
+            if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
+                // Prevent duplicate broadcast if this stateChange was just triggered by userPlay/userPause
+                if (Date.now() - (this.lastLocalActionTime || 0) > 250) {
+                    this.lastLocalActionTime = Date.now();
+                    const action = (e.detail && e.detail.playing) ? 'play' : 'pause';
+                    this.broadcastHostState(action);
+                }
             }
         });
     }
@@ -95,6 +107,17 @@ export class SyncEngine {
     setupSocketListeners() {
         this.socket.on('sync_playback', (data) => {
             if (data.userId === this.roomManager.myId) return; // Ignore our own sync messages
+            
+            // Ignore stale incoming sync messages for 2000ms after a local control action (seek/play/pause)
+            if (Date.now() - (this.lastLocalActionTime || 0) < 2000) {
+                return;
+            }
+
+            this.isApplyingRemoteState = true;
+            clearTimeout(this._remoteStateTimeout);
+            this._remoteStateTimeout = setTimeout(() => {
+                this.isApplyingRemoteState = false;
+            }, 1000);
             
             this.remoteState = data;
             this.baseSpeed = data.speed;
@@ -118,7 +141,7 @@ export class SyncEngine {
             if (data.playing !== !this.player.video.paused) {
                 if (data.playing) {
                     this.player.forcePlay();
-                } else if (data.action === 'pause') {
+                } else {
                     this.player.forcePause();
                 }
             }
@@ -129,10 +152,11 @@ export class SyncEngine {
         });
 
         this.socket.on('room_state_change', () => {
-            if (this.roomManager.isHost() && !this.player.video.paused) {
+            if (this.roomManager.isHost() && !this.player.video.paused && !this.isApplyingRemoteState) {
                 if (!this.isEveryoneReady()) {
+                    this.lastLocalActionTime = Date.now();
                     this.player.forcePause();
-                    this.broadcastHostState();
+                    this.broadcastHostState('pause');
                     notifications.show('Paused because a user is not ready', 'warning');
                 }
             }
@@ -140,7 +164,7 @@ export class SyncEngine {
     }
 
     broadcastHostState(action = null, overrideTime = null) {
-        if (!this.player.video || !this.roomManager.canControl()) return;
+        if (!this.player.video || !this.roomManager.canControl() || this.isApplyingRemoteState) return;
         
         if (!action && overrideTime === null && (this.player.isSeeking || this.player.video.seeking)) {
             return;
@@ -180,7 +204,7 @@ export class SyncEngine {
     }
 
     driftCorrectionLoop() {
-        if (this.roomManager.isHost() || !this.player.currentFile) {
+        if (this.roomManager.isHost() || !this.player.currentFile || this.isApplyingRemoteState) {
             this.syncStatusEl.textContent = '';
             this.syncStatusEl.style.color = 'var(--text-secondary)';
             this.isCorrectingDrift = false;
@@ -236,7 +260,12 @@ export class SyncEngine {
 
         if (absDrift > SEEK_THRESHOLD) {
             // Major desync: Hard seek
+            this.isApplyingRemoteState = true;
             this.player.forceSeek(expectedTime);
+            clearTimeout(this._remoteStateTimeout);
+            this._remoteStateTimeout = setTimeout(() => {
+                this.isApplyingRemoteState = false;
+            }, 1000);
             setRateSmoothly(this.baseSpeed);
             this.isCorrectingDrift = false;
             this.syncStatusEl.textContent = 'Sync: Seeking...';

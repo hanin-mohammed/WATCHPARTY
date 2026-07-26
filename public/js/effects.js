@@ -8,32 +8,18 @@ export class SpecialEffectsManager {
             rotten_tomato: false
         };
 
-        this.goldenBuzzerIcons = [
-            '/img/buzzers/golden-buzzer.png',
-            '/img/buzzers/golden-buzzer-1.png',
-            '/img/buzzers/golden-buzzer-2.png',
-            '/img/buzzers/golden-buzzer-3.png'
-        ];
-        this.rottenTomatoIcons = [
-            '/img/buzzers/rotten-tomato.png',
-            '/img/buzzers/rotten-tomato-1.png',
-            '/img/buzzers/rotten-tomato-2.png',
-            '/img/buzzers/rotten-tomato-3.png',
-            '/img/buzzers/rotten-tomato-4.png',
-            '/img/buzzers/rotten-tomato-5.png',
-            '/img/buzzers/rotten-tomato-6.png'
+        this.tomatoSplatters = [
+            '/img/buzzers/splatter-1.png',
+            '/img/buzzers/splatter-2.png',
+            '/img/buzzers/splatter-3.png'
         ];
 
         this.setupListeners();
         this.setupUI();
     }
 
-    getRandomGoldenBuzzerIcon() {
-        return this.goldenBuzzerIcons[Math.floor(Math.random() * this.goldenBuzzerIcons.length)];
-    }
-
-    getRandomRottenTomatoIcon() {
-        return this.rottenTomatoIcons[Math.floor(Math.random() * this.rottenTomatoIcons.length)];
+    getRandomTomatoSplatter() {
+        return this.tomatoSplatters[Math.floor(Math.random() * this.tomatoSplatters.length)];
     }
 
     getOverlayTarget() {
@@ -153,7 +139,7 @@ export class SpecialEffectsManager {
         const iconWrapper = document.createElement('div');
         iconWrapper.className = 'banner-icon-wrapper golden-icon-wrapper';
         const iconImg = document.createElement('img');
-        iconImg.src = this.getRandomGoldenBuzzerIcon();
+        iconImg.src = '/img/buzzers/golden-buzzer.png';
         iconImg.alt = 'Golden Buzzer';
         iconWrapper.appendChild(iconImg);
 
@@ -308,7 +294,7 @@ export class SpecialEffectsManager {
             splatterEl.style.animationDelay = `${randomDelay}ms`;
 
             const img = document.createElement('img');
-            img.src = this.getRandomRottenTomatoIcon();
+            img.src = this.getRandomTomatoSplatter();
             img.alt = 'Rotten Tomato';
             splatterEl.appendChild(img);
 
@@ -338,7 +324,7 @@ export class SpecialEffectsManager {
         const iconWrapper = document.createElement('div');
         iconWrapper.className = 'banner-icon-wrapper tomato-icon-wrapper';
         const iconImg = document.createElement('img');
-        iconImg.src = this.getRandomRottenTomatoIcon();
+        iconImg.src = '/img/buzzers/rotten-tomato.png';
         iconImg.alt = 'Rotten Tomato';
         iconWrapper.appendChild(iconImg);
 

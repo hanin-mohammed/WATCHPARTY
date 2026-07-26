@@ -130,10 +130,20 @@ h1, h2, h3, h4, h5, h6, .step-title, .glow-text, .window-title {
     font-family: 'MontaguSlab', serif;
     letter-spacing: 0.5px;
 }
-.mono, .time-display {
+.mono {
     font-family: 'Parkinsans', sans-serif;
     font-size: 0.95em;
     font-weight: 600;
+}
+.time-display {
+    font-family: 'Jersey 10', sans-serif !important;
+    font-size: 1.35rem;
+    font-weight: 400;
+    color: var(--border-color);
+    letter-spacing: 1px;
+}
+.time-display span {
+    font-family: 'Jersey 10', sans-serif !important;
 }
 .hidden { display: none !important; }
 
@@ -255,8 +265,21 @@ h1, h2, h3, h4, h5, h6, .step-title, .glow-text, .window-title {
 .btn-primary:active { transform: translateY(2px); box-shadow: 1px 1px 0px rgba(44, 62, 80, 0.1); }
 
 .btn-secondary { background: var(--bg-window); color: var(--text-primary); }
-.btn-secondary:hover { background: #f0f0f0; transform: translateY(-2px); box-shadow: 4px 4px 0px rgba(44, 62, 80, 0.2); }
+.btn-secondary:hover { background: #e2e8f0; color: #1e293b; transform: translateY(-2px); box-shadow: 4px 4px 0px rgba(44, 62, 80, 0.2); }
 .btn-secondary:active { transform: translateY(2px); box-shadow: 1px 1px 0px rgba(44, 62, 80, 0.1); }
+
+html.dark-mode .btn-primary:hover,
+html.dark-mode .btn-secondary:hover,
+html.dark-mode .icon-btn:hover,
+html.dark-mode .speed-select:hover,
+html.dark-mode .sidebar-tab:hover,
+html.dark-mode .recent-video-item:hover,
+html.dark-mode .golden-buzzer-btn:hover,
+html.dark-mode .rotten-tomato-btn:hover {
+    background: var(--accent-hover, #4a6382) !important;
+    color: #ffffff !important;
+    border-color: #94a3b8 !important;
+}
 
 .welcome-top-right {
     position: absolute;
@@ -285,6 +308,7 @@ h1, h2, h3, h4, h5, h6, .step-title, .glow-text, .window-title {
     position: relative;
     display: inline-block;
     vertical-align: middle;
+    z-index: 100001;
 }
 .recent-videos-dropdown {
     position: absolute;
@@ -292,12 +316,14 @@ h1, h2, h3, h4, h5, h6, .step-title, .glow-text, .window-title {
     left: 0;
     width: 280px;
     max-width: 90vw;
-    z-index: 1000;
+    z-index: 100002 !important;
     background: var(--bg-window);
     border: 2px solid var(--border-color);
     border-radius: 12px;
     box-shadow: 4px 4px 12px rgba(0,0,0,0.25);
     overflow: hidden;
+    max-height: 350px;
+    overflow-y: auto;
 }
 .recent-videos-header {
     background: var(--title-bg);
@@ -526,13 +552,13 @@ html.dark-mode .room-sticker[data-room="TIRAMISU"]     { background: linear-grad
     top: 0;
     left: 0;
     right: 0;
-    height: 45%;
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 80%);
+    bottom: 0;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 60%);
     pointer-events: none;
     z-index: 1;
 }
 html.dark-mode .glossy-highlight {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 80%);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
 }
 
 /* Subtle Paper Grain Texture */
@@ -708,7 +734,14 @@ html.dark-mode .paper-grain {
 }
 
 /* Password Digits */
-.password-digits { display: flex; gap: 10px; justify-content: center; }
+.password-digits {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    margin: 0 auto;
+}
 @keyframes popIn {
     0% { transform: scale(0.8); }
     50% { transform: scale(1.1); }
@@ -716,6 +749,7 @@ html.dark-mode .paper-grain {
 }
 .pwd-digit {
     width: 45px; height: 55px;
+    flex: 1; min-width: 0; max-width: 45px;
     font-size: 1.5rem; text-align: center;
     border-radius: 8px; border: var(--border-width) solid var(--border-color);
     box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05);
@@ -737,7 +771,8 @@ html.dark-mode .paper-grain {
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    z-index: 100;
+    z-index: 100000 !important;
+    overflow: visible !important;
 }
 .top-bar.retro-window { border-radius: 12px; }
 
@@ -847,42 +882,9 @@ html.dark-mode .paper-grain {
 }
 .player-content {
     padding: 0;
-    background-color: var(--bg-window);
+    background-color: #000;
     position: relative;
     overflow: hidden;
-}
-.player-content::before,
-.player-content::after {
-    content: '';
-    position: absolute;
-    inset: -30%;
-    width: 160%;
-    height: 160%;
-    pointer-events: none;
-    z-index: 1;
-}
-.player-content::before {
-    background: 
-        radial-gradient(circle at 25% 30%, rgba(99, 102, 241, 0.25) 0%, transparent 50%),
-        radial-gradient(circle at 75% 70%, rgba(236, 72, 153, 0.22) 0%, transparent 55%);
-    animation: smoothAmbientRotate 18s ease-in-out infinite alternate;
-    filter: blur(45px);
-}
-.player-content::after {
-    background: 
-        radial-gradient(circle at 65% 25%, rgba(168, 85, 247, 0.22) 0%, transparent 55%);
-    animation: smoothAmbientRotate2 22s ease-in-out infinite alternate;
-    filter: blur(55px);
-}
-@keyframes smoothAmbientRotate {
-    0% { transform: scale(1) translate(0%, 0%) rotate(0deg); }
-    50% { transform: scale(1.12) translate(5%, 5%) rotate(10deg); }
-    100% { transform: scale(1) translate(0%, 0%) rotate(0deg); }
-}
-@keyframes smoothAmbientRotate2 {
-    0% { transform: scale(1) translate(0%, 0%) rotate(0deg); }
-    50% { transform: scale(1.15) translate(-5%, 5%) rotate(-10deg); }
-    100% { transform: scale(1) translate(0%, 0%) rotate(0deg); }
 }
 
 
@@ -1073,10 +1075,11 @@ video::-webkit-media-controls-enclosure {
     background: #000;
 }
 .preview-time {
-    font-family: 'Parkinsans', sans-serif;
-    font-size: 0.85rem;
+    font-family: 'Jersey 10', sans-serif !important;
+    font-size: 1.15rem;
     margin-top: 4px;
-    font-weight: 700;
+    font-weight: 400;
+    letter-spacing: 0.5px;
 }
 
 .controls-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -1094,6 +1097,12 @@ video::-webkit-media-controls-enclosure {
     box-shadow: 2px 2px 0px rgba(44,62,80,0.15);
     transition: transform 0.1s;
 }
+.video-controls .icon-btn {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    box-sizing: border-box !important;
+}
 .icon-btn:hover { background: var(--accent); transform: translateY(-2px); }
 .icon-btn.remove-user-btn:hover { background: var(--danger); color: var(--border-color); }
 .icon-btn:active { transform: translateY(1px); box-shadow: none; }
@@ -1101,11 +1110,20 @@ video::-webkit-media-controls-enclosure {
 .speed-select {
     border: 2px solid var(--border-color);
     border-radius: 6px;
-    padding: 4px;
+    padding: 0 8px;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    box-sizing: border-box !important;
     font-family: 'Jersey 10', sans-serif;
     font-size: 1.15rem;
     font-weight: 400;
     background: var(--bg-window);
+    color: var(--border-color);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 2px 2px 0px rgba(44,62,80,0.15);
 }
 
 .volume-slider {
@@ -1487,22 +1505,45 @@ html.dark-mode .action-popup {
 }
 
 @media (max-width: 768px) {
-    body {
+    html, body {
         overflow-y: auto !important;
+        overflow-x: hidden !important;
         height: auto !important;
         min-height: 100dvh;
+        position: relative !important;
+        -webkit-overflow-scrolling: touch;
     }
-    #app {
-        padding: 8px;
-        gap: 8px;
-        overflow-y: auto !important;
+    .screen {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
         height: auto !important;
         min-height: 100dvh;
+        overflow-y: visible !important;
+        overflow-x: hidden !important;
+    }
+    .screen.hidden,
+    .screen:not(.active) {
+        display: none !important;
+    }
+    #app, #flow-container {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        padding: 10px;
+        gap: 10px;
+        overflow-y: visible !important;
+        overflow-x: hidden !important;
+        height: auto !important;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
     }
     .main-content {
         flex-direction: column;
-        overflow: visible;
-        height: auto;
+        overflow: visible !important;
+        height: auto !important;
+        flex: none !important;
     }
     .welcome-top-right {
         top: 12px;
@@ -1579,9 +1620,34 @@ html.dark-mode .action-popup {
 
 @media (max-width: 480px) {
     .dashboard-panel {
-        width: 95%;
-        max-height: 95vh;
-        padding: 16px;
+        width: 98% !important;
+        max-width: 98vw !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 12px !important;
+        margin: 20px auto !important;
+        overflow: visible !important;
+    }
+    .window-content {
+        padding: 14px 10px !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+    .password-digits {
+        gap: 6px;
+        width: 100%;
+        justify-content: space-between;
+        max-width: 320px;
+        margin: 0 auto;
+    }
+    .pwd-digit {
+        flex: 1;
+        min-width: 0;
+        max-width: 42px;
+        height: 48px;
+        font-size: 1.25rem;
+        padding: 0;
     }
     .user-cards, .role-cards {
         flex-direction: column;
@@ -1622,8 +1688,11 @@ html.dark-mode .action-popup {
         padding: 6px 12px;
     }
     .dashboard-panel {
-        max-height: 95vh;
-        padding: 12px;
+        max-height: none !important;
+        height: auto !important;
+        margin: 12px auto !important;
+        padding: 12px !important;
+        overflow: visible !important;
     }
     .glow-text {
         font-size: 1.5rem;
@@ -1921,9 +1990,10 @@ html.dark-mode .action-popup {
 /* Looping Animated Background Pattern on First Screen */
 .desktop-decorations {
     position: fixed;
-    inset: -30%;
-    width: 160%;
-    height: 160%;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
