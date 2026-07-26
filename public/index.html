@@ -4,90 +4,129 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hanha Cinema</title>
+    <script>
+        try {
+            const saved = localStorage.getItem('syncparty_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                if (settings.darkMode) {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            }
+        } catch(e) {}
+    </script>
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="theme-loader">
+
+    <!-- Retro Desktop Background Decorations -->
+    <div class="desktop-decorations">
+        <!-- Floating hearts/stars scattered around via CSS -->
+    </div>
 
     <!-- Notifications Container -->
     <div id="notifications-container"></div>
+    
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="icon-btn theme-toggle" title="Toggle Dark Mode">
+        <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon-icon hidden" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
 
     <!-- UI Flow Screens -->
     <div id="flow-container" class="screen active">
-        <div class="dashboard-panel glass-panel" id="flow-panel">
-            <h1 class="glow-text">Hanha Cinema</h1>
-            <p class="subtitle">Welcome to your cozy watch party</p>
-            
-            <!-- Step 1: User Selection -->
-            <div id="step-user" class="flow-step active">
-                <h2 class="step-title">Who is watching?</h2>
-                <div class="user-cards">
-                    <div class="user-card" data-user="Hanin">
-                        <img src="/assets/avatars/Hanin.png" alt="Hanin" class="user-card-img">
-                        <div class="user-card-name">Hanin</div>
-                    </div>
-                    <div class="user-card" data-user="Manha">
-                        <img src="/assets/avatars/Manha.png" alt="Manha" class="user-card-img">
-                        <div class="user-card-name">Manha</div>
-                    </div>
+        <div class="dashboard-panel retro-window" id="flow-panel">
+            <div class="window-title-bar">
+                <span class="window-title">Welcome</span>
+                <div class="window-controls">
+                    <button class="win-btn minimize"></button>
+                    <button class="win-btn maximize"></button>
+                    <button class="win-btn close"></button>
                 </div>
             </div>
-
-            <!-- Step 2: Role Selection -->
-            <div id="step-role" class="flow-step hidden">
-                <h2 class="step-title">What would you like to do?</h2>
-                <div class="role-cards">
-                    <div class="role-card" id="btn-host">
-                        <div class="role-icon">🎥</div>
-                        <div class="role-title">Host a Room</div>
-                        <div class="role-desc">Create a new watch party</div>
+            <div class="window-content">
+                <h1 class="glow-text">Hanha Cinema</h1>
+                <p class="subtitle">Welcome to your cozy watch party</p>
+                
+                <!-- Step 1: User Selection -->
+                <div id="step-user" class="flow-step active">
+                    <h2 class="step-title">Who is watching?</h2>
+                    <div class="user-cards">
+                        <div class="user-card" data-user="Hanin">
+                            <img src="/assets/avatars/Hanin.png" alt="Hanin" class="user-card-img">
+                            <div class="user-card-name">Hanin</div>
+                        </div>
+                        <div class="user-card" data-user="Manha">
+                            <img src="/assets/avatars/Manha.png" alt="Manha" class="user-card-img">
+                            <div class="user-card-name">Manha</div>
+                        </div>
                     </div>
-                    <div class="role-card" id="btn-join">
-                        <div class="role-icon">🍿</div>
-                        <div class="role-title">Join a Room</div>
-                        <div class="role-desc">Enter an existing watch party</div>
+                </div>
+
+                <!-- Step 2: Role Selection -->
+                <div id="step-role" class="flow-step hidden">
+                    <h2 class="step-title">What would you like to do?</h2>
+                    <div class="role-cards">
+                        <div class="role-card" id="btn-host">
+                            <div class="role-icon">
+                                <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                            </div>
+                            <div class="role-title">Host a Room</div>
+                            <div class="role-desc">Create a new watch party</div>
+                        </div>
+                        <div class="role-card" id="btn-join">
+                            <div class="role-icon">
+                                <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            </div>
+                            <div class="role-title">Join a Room</div>
+                            <div class="role-desc">Enter an existing watch party</div>
+                        </div>
+                    </div>
+                    <div class="step-actions" style="justify-content: flex-start;">
+                        <button class="btn-secondary" id="btn-back-from-role">Back</button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Step 3: Join Room -->
-            <div id="step-join" class="flow-step hidden">
-                <h2 class="step-title">Enter Room Code</h2>
-                <div class="input-group">
-                    <input type="text" id="join-room-code" placeholder="e.g. HNC-1234" autocomplete="off" class="text-center-input">
+                <!-- Step 3: Join Room -->
+                <div id="step-join" class="flow-step hidden">
+                    <h2 class="step-title">Enter Room Code</h2>
+                    <div class="input-group">
+                        <input type="text" id="join-room-code" placeholder="e.g. HNC-1234" autocomplete="off" class="text-center-input">
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary" id="btn-back-from-join">Back</button>
+                        <button class="btn-primary" id="btn-submit-join">Next</button>
+                    </div>
                 </div>
-                <div class="step-actions">
-                    <button class="btn-secondary" id="btn-back-from-join">Back</button>
-                    <button class="btn-primary" id="btn-submit-join">Next</button>
-                </div>
-            </div>
 
-            <!-- Step 4: Password -->
-            <div id="step-password" class="flow-step hidden">
-                <h2 class="step-title" id="password-title">Enter Room Password</h2>
-                <div class="room-code-display hidden" id="host-room-code-display">
-                    Room Code: <span id="host-code-value" class="mono"></span>
+                <!-- Step 4: Password -->
+                <div id="step-password" class="flow-step hidden">
+                    <h2 class="step-title" id="password-title">Enter Room Password</h2>
+                    <div class="room-code-display hidden" id="host-room-code-display">
+                        Room Code: <span id="host-code-value" class="mono"></span>
+                    </div>
+                    <div class="password-digits">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="0">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="1">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="2">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="3">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="4">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="pwd-digit" maxlength="1" data-index="5">
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary" id="btn-back-from-password">Back</button>
+                    </div>
                 </div>
-                <div class="password-digits">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="0">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="1">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="2">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="3">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="4">
-                    <input type="password" class="pwd-digit" maxlength="1" data-index="5">
-                </div>
-                <div class="step-actions">
-                    <button class="btn-secondary" id="btn-back-from-password">Back</button>
-                </div>
-            </div>
 
+            </div>
         </div>
     </div>
 
     <!-- Main App Interface -->
     <div id="app" class="screen">
         
-        <!-- Top Bar -->
-        <header class="top-bar glass-panel">
+        <!-- Top Bar (Taskbar) -->
+        <header class="top-bar retro-window">
             <div class="left-controls">
                 <div class="room-info">
                     <span class="label">ROOM:</span> <span id="current-room-id" class="value mono">---</span>
@@ -98,6 +137,9 @@
                     <span id="file-name" class="value">No video loaded</span>
                     <span id="file-size" class="value meta mono"></span>
                     <span id="file-duration" class="value meta mono"></span>
+                    <button class="icon-btn" id="remove-video-btn" title="Remove Video" style="padding: 4px; border-radius: 4px; margin-left: 8px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                    </button>
                 </div>
                 <label for="file-input" class="btn-secondary file-select-btn">
                     Select Local Video
@@ -112,84 +154,135 @@
                 <button class="icon-btn" id="settings-btn" title="Settings">
                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
+                <button class="icon-btn" id="leave-room-btn" title="Leave Room" style="color: var(--danger); border-color: var(--danger);">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
             </div>
         </header>
 
         <div class="main-content">
             
             <!-- Video Player Area -->
-            <div class="player-container glass-panel" id="player-wrapper">
-                <div id="drop-zone" class="drop-zone">
-                    <p>Drag and drop local video file here</p>
+            <div class="player-container retro-window" id="player-wrapper">
+                <div class="window-title-bar">
+                    <span class="window-title">Media Player</span>
+                    <div class="window-controls">
+                        <button class="win-btn minimize"></button>
+                        <button class="win-btn maximize"></button>
+                        <button class="win-btn close"></button>
+                    </div>
                 </div>
-                
-                <video id="video-element" class="hidden"></video>
-                
-                <!-- Chat Overlay -->
-                <div class="chat-overlay" id="chat-overlay">
-                    <div class="chat-messages" id="chat-messages"></div>
-                    <form id="chat-form" class="chat-input-wrapper">
-                        <input type="text" id="chat-input" placeholder="Type a message... (Enter to send)" autocomplete="off">
-                    </form>
-                </div>
-
-                <!-- Custom Video Controls Overlay -->
-                <div class="video-controls glass-panel" id="video-controls">
-                    <div class="progress-container" id="progress-container">
-                        <div class="progress-bar" id="progress-bar">
-                            <div class="progress-filled" id="progress-filled"></div>
-                        </div>
+                <div class="window-content player-content">
+                    <div id="drop-zone" class="drop-zone">
+                        <p>Drag and drop local video file here</p>
                     </div>
                     
-                    <div class="controls-row">
-                        <div class="left-controls">
-                            <button class="icon-btn" id="play-pause-btn">
-                                <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            </button>
-                            <div class="time-display mono">
-                                <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                    <video id="video-element" class="hidden" disablePictureInPicture playsinline webkit-playsinline></video>
+                    
+                    <!-- Chat Overlay -->
+                    <div class="chat-overlay" id="chat-overlay">
+                        <div class="chat-messages" id="chat-messages"></div>
+                    </div>
+
+
+                    <!-- Reactions Bar -->
+                    <div class="reactions-bar retro-window" id="reactions-bar">
+                        <button type="button" class="reaction-trigger icon-btn" data-emoji="❤️" title="Heart">❤️</button>
+                        <button type="button" class="reaction-trigger icon-btn" data-emoji="😂" title="Laugh">😂</button>
+                        <button type="button" class="reaction-trigger icon-btn" data-emoji="😮" title="Wow">😮</button>
+                    </div>
+
+                    <!-- Custom Video Controls Overlay -->
+                    <div class="video-controls retro-window" id="video-controls">
+                        <div class="progress-container" id="progress-container">
+                            <div class="progress-bar" id="progress-bar">
+                                <div class="progress-filled" id="progress-filled"></div>
+                                <div class="playhead" id="playhead"></div>
+                            </div>
+                            <div class="scrub-preview" id="scrub-preview">
+                                <video id="preview-video" preload="auto" muted playsinline></video>
+                                <div class="preview-time" id="preview-time">00:00</div>
                             </div>
                         </div>
                         
-                        <div class="center-controls">
-                            <div class="sync-status" id="sync-status">Sync: Idle</div>
-                        </div>
+                        <div class="controls-row">
+                            <div class="left-controls">
+                                <button class="icon-btn" id="play-pause-btn">
+                                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                </button>
+                                <div class="time-display mono">
+                                    <span id="current-time">00:00</span> / <span id="total-time">00:00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="center-controls">
+                                <button class="btn-primary" id="ready-toggle-btn" style="background: var(--warning); color: var(--border-color); padding: 4px 12px; margin-right: 12px;">Not Ready</button>
+                                <div class="sync-status" id="sync-status">Sync: Idle</div>
+                            </div>
 
-                        <div class="right-controls">
-                            <label class="icon-btn subtitle-btn" title="Load Subtitles">
-                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                <input type="file" id="subtitle-input" accept=".srt,.vtt,.ass" class="hidden-input">
-                            </label>
-                            <select id="playback-speed" class="speed-select btn-secondary">
-                                <option value="0.5">0.5x</option>
-                                <option value="1" selected>1.0x</option>
-                                <option value="1.5">1.5x</option>
-                                <option value="2">2.0x</option>
-                            </select>
-                            <button class="icon-btn" id="fullscreen-btn">
-                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                            </button>
+                            <div class="right-controls">
+                                <div class="volume-container" style="display: flex; align-items: center; gap: 8px;">
+                                    <button class="icon-btn" id="mute-btn" title="Mute/Unmute">
+                                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" id="volume-icon">
+                                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                        </svg>
+                                    </button>
+                                    <input type="range" id="volume-slider" class="volume-slider" min="0" max="1" step="0.01" value="1">
+                                </div>
+                                <label class="icon-btn subtitle-btn" title="Load Subtitles">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                    <input type="file" id="subtitle-input" accept=".srt,.vtt,.ass" class="hidden-input">
+                                </label>
+                                <select id="playback-speed" class="speed-select btn-secondary">
+                                    <option value="0.5">0.5x</option>
+                                    <option value="1" selected>1.0x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2">2.0x</option>
+                                </select>
+                                <button class="icon-btn" id="fullscreen-btn">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Sidebar (Users & Info) -->
-            <aside class="sidebar glass-panel">
-                <div class="sidebar-header">
-                    <h3>Participants</h3>
-                    <span class="user-count" id="user-count">1</span>
+            <aside class="sidebar retro-window">
+                <div class="window-title-bar">
+                    <span class="window-title">Network</span>
+                    <div class="window-controls">
+                        <button class="win-btn close"></button>
+                    </div>
                 </div>
-                <ul class="user-list" id="user-list">
-                    <!-- User items generated in JS -->
-                </ul>
-                
-                <div class="host-controls hidden" id="host-controls">
-                    <h3>Host Controls</h3>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="collab-mode-checkbox">
-                        Collaborative Control
-                    </label>
+                <div class="window-content sidebar-content" style="padding: 0; display: flex; flex-direction: column;">
+                    <div class="sidebar-tabs">
+                        <button class="sidebar-tab active" id="tab-participants">Participants <span class="user-count" id="user-count">1</span></button>
+                        <button class="sidebar-tab" id="tab-chat">Chat</button>
+                    </div>
+                    
+                    <div class="sidebar-pane active" id="pane-participants" style="padding: 16px; display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                        <ul class="user-list" id="user-list">
+                            <!-- User items generated in JS -->
+                        </ul>
+                    
+                        <div class="host-controls hidden" id="host-controls">
+                            <h3>Host Controls</h3>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="collab-mode-checkbox">
+                                <span class="custom-checkbox"></span>
+                                Collaborative Control
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="sidebar-pane" id="pane-chat" style="padding: 16px; display: none; flex-direction: column; flex: 1; overflow: hidden;">
+                        <div class="chat-messages" id="sidebar-chat-messages" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding-right: 4px;"></div>
+                        <form id="chat-form" class="sidebar-chat-form">
+                            <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                        </form>
+                    </div>
                 </div>
             </aside>
         </div>
@@ -197,43 +290,78 @@
 
     <!-- Modals -->
     <div id="settings-modal" class="modal-backdrop hidden">
-        <div class="modal-content glass-panel">
-            <h2>Settings</h2>
-            
-            <div class="settings-section">
-                <h3>Subtitles</h3>
-                <div class="input-group">
-                    <label>Delay (ms)</label>
-                    <input type="number" id="sub-delay" value="0" step="100">
-                </div>
-                <div class="input-group">
-                    <label>Font Size (px)</label>
-                    <input type="number" id="sub-size" value="24" step="1">
+        <div class="modal-content retro-window">
+            <div class="window-title-bar">
+                <span class="window-title">Settings</span>
+                <div class="window-controls">
+                    <button class="win-btn close" id="close-settings-x"></button>
                 </div>
             </div>
-            
-            <div class="modal-actions">
-                <button class="btn-primary" id="close-settings">Close</button>
+            <div class="window-content">
+                <h2>Settings</h2>
+                
+                <div class="settings-section">
+                    <h3>Subtitles</h3>
+                    <div class="input-group">
+                        <label>Delay (ms)</label>
+                        <input type="number" id="sub-delay" value="0" step="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Font Size (px)</label>
+                        <input type="number" id="sub-size" value="24" step="1">
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn-primary" id="close-settings">Close</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="hash-warning-modal" class="modal-backdrop hidden">
-        <div class="modal-content glass-panel error-panel">
-            <h2>File Mismatch Detected</h2>
-            <p>Your local video file differs from the host's file.</p>
-            <p>Synchronization may fail or be inaccurate.</p>
-            <div class="mismatch-details mono">
-                <div>Host: <span id="host-hash-display"></span></div>
-                <div>You: <span id="local-hash-display"></span></div>
+        <div class="modal-content retro-window error-window">
+            <div class="window-title-bar">
+                <span class="window-title">Error Alert</span>
+                <div class="window-controls">
+                    <button class="win-btn close"></button>
+                </div>
             </div>
-            <div class="modal-actions">
-                <button class="btn-primary" id="accept-mismatch">Continue Anyway</button>
+            <div class="window-content">
+                <div class="error-header" style="display:flex; gap:10px; align-items:center; margin-bottom:16px;">
+                    <svg viewBox="0 0 24 24" width="32" height="32" stroke="var(--danger)" stroke-width="2" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <h2 style="margin:0;">File Mismatch Detected</h2>
+                </div>
+                <p>Your local video file differs from the host's file.</p>
+                <p>Synchronization may fail or be inaccurate.</p>
+                <div class="mismatch-details mono">
+                    <div>Host: <span id="host-hash-display"></span></div>
+                    <div>You: <span id="local-hash-display"></span></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" id="accept-mismatch">Continue Anyway</button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Scripts -->
     <script type="module" src="/js/main.js"></script>
+    <script>
+        document.querySelectorAll('.win-btn.close').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (btn.id === 'close-settings-x') {
+                    document.getElementById('settings-modal').classList.add('hidden');
+                } else {
+                    const windowEl = e.target.closest('.retro-window');
+                    if (windowEl && !windowEl.id.includes('flow-panel')) {
+                        if(windowEl.classList.contains('modal-content')) {
+                            windowEl.closest('.modal-backdrop').classList.add('hidden');
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

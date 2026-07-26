@@ -5,7 +5,8 @@ export const defaultSettings = {
     color: '#4a8cff',
     subtitleDelay: 0,
     subtitleSize: 24,
-    lastRoomId: ''
+    lastRoomId: '',
+    darkMode: false
 };
 
 export class Settings {

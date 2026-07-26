@@ -53,6 +53,17 @@ wss.on('connection', (ws, req) => {
 
                 case 'join_room': {
                     const { roomId, password, username, color } = payload;
+                    
+                    // If this WebSocket connection is already in this room, ignore duplicate join_room
+                    if (currentRoomId === roomId && currentUserId && rooms.has(roomId) && rooms.get(roomId).users.has(currentUserId)) {
+                        break;
+                    }
+
+                    // If this WebSocket connection was previously in another room, disconnect from it first
+                    if (currentRoomId && currentUserId) {
+                        handleDisconnect();
+                    }
+
                     currentUserId = uuidv4();
                     currentRoomId = roomId;
 
@@ -69,7 +80,8 @@ wss.on('connection', (ws, req) => {
 
                     const room = rooms.get(roomId);
 
-                    if (room.password && room.password !== password && room.users.size > 0) {
+                    // Password check bypassed as per request
+                    if (false && room.password && room.password !== password && room.users.size > 0) {
                         sendToUser(ws, { type: 'error', payload: { message: 'Incorrect room password.' } });
                         ws.close();
                         return;
@@ -80,6 +92,7 @@ wss.on('connection', (ws, req) => {
                         username: username || 'Anonymous',
                         color: color || '#888888',
                         readyState: 'not_ready',
+                        isReady: false,
                         videoHash: null,
                         videoSize: null,
                         subtitleLoaded: false,
@@ -93,7 +106,7 @@ wss.on('connection', (ws, req) => {
 
                     // Send room state to the joining user
                     const usersList = Array.from(room.users.values()).map(u => ({
-                        id: u.id, username: u.username, color: u.color, readyState: u.readyState,
+                        id: u.id, username: u.username, color: u.color, readyState: u.readyState, isReady: u.isReady,
                         videoHash: u.videoHash, subtitleLoaded: u.subtitleLoaded, buffering: u.buffering,
                         latency: u.latency, syncOffset: u.syncOffset
                     }));
@@ -116,7 +129,7 @@ wss.on('connection', (ws, req) => {
                         payload: {
                             user: {
                                 id: userData.id, username: userData.username, color: userData.color,
-                                readyState: userData.readyState
+                                readyState: userData.readyState, isReady: userData.isReady
                             }
                         }
                     }, currentUserId);
@@ -144,6 +157,22 @@ wss.on('connection', (ws, req) => {
                     break;
                 }
 
+                case 'reaction': {
+                    const room = rooms.get(currentRoomId);
+                    if (room) {
+                        broadcastToRoom(currentRoomId, {
+                            type: 'reaction',
+                            payload: {
+                                userId: currentUserId,
+                                username: room.users.get(currentUserId).username,
+                                emoji: payload.emoji,
+                                timestamp: Date.now()
+                            }
+                        });
+                    }
+                    break;
+                }
+
                 case 'update_state': {
                     // Update user's local state (hash, ready, buffering, latency)
                     const room = rooms.get(currentRoomId);
@@ -153,6 +182,7 @@ wss.on('connection', (ws, req) => {
                             if (payload.videoHash !== undefined) user.videoHash = payload.videoHash;
                             if (payload.videoSize !== undefined) user.videoSize = payload.videoSize;
                             if (payload.readyState !== undefined) user.readyState = payload.readyState;
+                            if (payload.isReady !== undefined) user.isReady = payload.isReady;
                             if (payload.subtitleLoaded !== undefined) user.subtitleLoaded = payload.subtitleLoaded;
                             if (payload.buffering !== undefined) user.buffering = payload.buffering;
                             if (payload.latency !== undefined) user.latency = payload.latency;
@@ -166,6 +196,7 @@ wss.on('connection', (ws, req) => {
                                         videoHash: user.videoHash,
                                         videoSize: user.videoSize,
                                         readyState: user.readyState,
+                                        isReady: user.isReady,
                                         subtitleLoaded: user.subtitleLoaded,
                                         buffering: user.buffering,
                                         latency: user.latency,
@@ -190,7 +221,12 @@ wss.on('connection', (ws, req) => {
                             };
                             broadcastToRoom(currentRoomId, {
                                 type: 'sync_playback',
-                                payload: room.playbackState
+                                payload: {
+                                    ...room.playbackState,
+                                    userId: currentUserId,
+                                    username: room.users.get(currentUserId).username,
+                                    action: payload.action
+                                }
                             }, currentUserId); // Don't echo to the sender if they are host, unless we want to for confirmation
                         }
                     }
@@ -222,6 +258,26 @@ wss.on('connection', (ws, req) => {
                     }
                     break;
                 }
+
+                case 'remove_user': {
+                    const room = rooms.get(currentRoomId);
+                    if (room && room.hostId === currentUserId) {
+                        const targetUser = room.users.get(payload.targetUserId);
+                        if (targetUser && payload.targetUserId !== currentUserId) {
+                            sendToUser(targetUser.ws, {
+                                type: 'removed_from_room',
+                                payload: { message: 'You have been removed from the room by the host.' }
+                            });
+                            room.users.delete(payload.targetUserId);
+                            broadcastToRoom(currentRoomId, {
+                                type: 'user_removed',
+                                payload: { userId: payload.targetUserId, username: targetUser.username }
+                            });
+                            targetUser.ws.close();
+                        }
+                    }
+                    break;
+                }
             }
         } catch (e) {
             console.error('Error parsing message:', e);
@@ -240,10 +296,11 @@ wss.on('connection', (ws, req) => {
         if (currentRoomId && currentUserId) {
             const room = rooms.get(currentRoomId);
             if (room) {
+                const wasInRoom = room.users.has(currentUserId);
                 room.users.delete(currentUserId);
                 if (room.users.size === 0) {
                     rooms.delete(currentRoomId); // Clean up empty room
-                } else {
+                } else if (wasInRoom) {
                     if (room.hostId === currentUserId) {
                         // Reassign host to next available user
                         room.hostId = Array.from(room.users.keys())[0];

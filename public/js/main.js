@@ -9,13 +9,22 @@ import { UIManager } from './ui.js';
 import { calculateFileHash } from './utils.js';
 import { notifications } from './notifications.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+function init() {
+    // Prevent default drag and drop behaviors on the entire document to avoid accidental navigation
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', (e) => e.preventDefault());
+
+    // Exit Picture-in-Picture if the browser restored it from a previous session
+    if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+    }
+
     // Initialize Core Systems
     const socket = new SocketManager();
     const roomManager = new RoomManager(socket);
     const player = new VideoPlayer();
-    const syncEngine = new SyncEngine(player, socket, roomManager);
     const chatManager = new ChatManager(socket);
+    const syncEngine = new SyncEngine(player, socket, roomManager, chatManager);
     const subtitleManager = new SubtitleManager(player);
     const uiManager = new UIManager(roomManager, socket);
 
@@ -47,6 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    player.events.addEventListener('videoRemoved', () => {
+        if (roomManager.roomId) {
+            roomManager.updateLocalState({
+                videoHash: null,
+                videoSize: 0,
+                readyState: 'unready'
+            });
+        }
+    });
+
     // When subtitles are loaded, update local state
     document.addEventListener('subtitleLoaded', () => {
         roomManager.updateLocalState({ subtitleLoaded: true });
@@ -61,4 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
             subtitleManager.applySettings();
         }
     });
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

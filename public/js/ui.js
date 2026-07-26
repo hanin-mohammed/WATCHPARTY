@@ -21,6 +21,7 @@ export class UIManager {
         this.selectedUser = '';
         this.role = ''; // 'host' or 'join'
         this.roomId = '';
+        this.isJoining = false;
         
         // Sidebar
         this.userListEl = document.getElementById('user-list');
@@ -40,9 +41,50 @@ export class UIManager {
         this.localHashDisplay = document.getElementById('local-hash-display');
         this.acceptMismatchBtn = document.getElementById('accept-mismatch');
 
+        this.themeToggleBtn = document.getElementById('theme-toggle');
+
+        this.setupTheme();
         this.setupFlow();
         this.setupSettings();
         this.setupRoomListeners();
+        this.setupSidebarTabs();
+    }
+
+    setupSidebarTabs() {
+        const tabParticipants = document.getElementById('tab-participants');
+        const tabChat = document.getElementById('tab-chat');
+        const paneParticipants = document.getElementById('pane-participants');
+        const paneChat = document.getElementById('pane-chat');
+
+        if (tabParticipants && tabChat) {
+            tabParticipants.addEventListener('click', () => {
+                tabParticipants.classList.add('active');
+                tabChat.classList.remove('active');
+                paneParticipants.style.display = 'flex';
+                paneChat.style.display = 'none';
+            });
+            tabChat.addEventListener('click', () => {
+                tabChat.classList.add('active');
+                tabParticipants.classList.remove('active');
+                paneParticipants.style.display = 'none';
+                paneChat.style.display = 'flex';
+                // Scroll chat to bottom when switching
+                const chatContainer = document.getElementById('sidebar-chat-messages');
+                if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+    }
+
+    setupTheme() {
+        if (settings.get('darkMode')) {
+            document.documentElement.classList.add('dark-mode');
+        }
+        if (this.themeToggleBtn) {
+            this.themeToggleBtn.addEventListener('click', () => {
+                const isDark = document.documentElement.classList.toggle('dark-mode');
+                settings.set('darkMode', isDark);
+            });
+        }
     }
 
     showStep(stepEl) {
@@ -54,23 +96,43 @@ export class UIManager {
         stepEl.classList.add('active');
     }
 
+    resetPasswordInputs() {
+        this.isJoining = false;
+        document.querySelectorAll('.pwd-digit').forEach(input => {
+            input.disabled = false;
+            input.value = '';
+            input.classList.remove('filled');
+        });
+    }
+
     setupFlow() {
         // Step 1: User
         document.querySelectorAll('.user-card').forEach(card => {
             card.addEventListener('click', () => {
                 this.selectedUser = card.dataset.user;
-                document.body.className = 'theme-' + this.selectedUser.toLowerCase();
+                // Remove existing theme classes safely
+                document.body.classList.forEach(cls => {
+                    if (cls.startsWith('theme-')) {
+                        document.body.classList.remove(cls);
+                    }
+                });
+                document.body.classList.add('theme-' + this.selectedUser.toLowerCase());
                 this.showStep(this.stepRole);
             });
         });
 
         // Step 2: Role
+        document.getElementById('btn-back-from-role').addEventListener('click', () => {
+            this.showStep(this.stepUser);
+        });
+
         document.getElementById('btn-host').addEventListener('click', () => {
             this.role = 'host';
             this.roomId = 'HNC-' + Math.random().toString(36).substr(2, 4).toUpperCase();
             document.getElementById('host-room-code-display').classList.remove('hidden');
             document.getElementById('host-code-value').textContent = this.roomId;
             this.showStep(this.stepPassword);
+            this.resetPasswordInputs();
             document.querySelector('.pwd-digit[data-index="0"]').focus();
         });
 
@@ -91,17 +153,14 @@ export class UIManager {
                 this.roomId = code;
                 document.getElementById('host-room-code-display').classList.add('hidden');
                 this.showStep(this.stepPassword);
+                this.resetPasswordInputs();
                 document.querySelector('.pwd-digit[data-index="0"]').focus();
             }
         });
 
         // Step 4: Password
         document.getElementById('btn-back-from-password').addEventListener('click', () => {
-            // clear password inputs
-            document.querySelectorAll('.pwd-digit').forEach(input => {
-                input.value = '';
-                input.classList.remove('filled');
-            });
+            this.resetPasswordInputs();
             if (this.role === 'host') {
                 this.showStep(this.stepRole);
             } else {
@@ -112,11 +171,13 @@ export class UIManager {
         const digits = Array.from(document.querySelectorAll('.pwd-digit'));
         digits.forEach((input, idx) => {
             input.addEventListener('input', (e) => {
+                if (this.isJoining) return;
                 if (input.value.length === 1) {
                     input.classList.add('filled');
                     if (idx < digits.length - 1) {
                         digits[idx + 1].focus();
                     } else {
+                        input.blur();
                         this.validatePassword();
                     }
                 } else {
@@ -125,6 +186,7 @@ export class UIManager {
             });
 
             input.addEventListener('keydown', (e) => {
+                if (this.isJoining) return;
                 if (e.key === 'Backspace' && input.value === '') {
                     if (idx > 0) {
                         digits[idx - 1].focus();
@@ -133,41 +195,74 @@ export class UIManager {
                     }
                 }
             });
+
+            input.addEventListener('paste', (e) => {
+                if (this.isJoining) return;
+                const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+                if (/^\d{6}$/.test(pasteData)) {
+                    e.preventDefault();
+                    digits.forEach((d, i) => {
+                        d.value = pasteData[i];
+                        d.classList.add('filled');
+                    });
+                    digits[digits.length - 1].blur();
+                    this.validatePassword();
+                }
+            });
         });
     }
 
     validatePassword() {
+        if (this.isJoining) return;
+        this.isJoining = true;
+
         const pwd = Array.from(document.querySelectorAll('.pwd-digit')).map(i => i.value).join('');
-        if (pwd === '301025') {
-            settings.set('username', this.selectedUser);
-            settings.set('lastRoomId', this.roomId);
+
+        document.querySelectorAll('.pwd-digit').forEach(input => {
+            input.disabled = true;
+            input.blur();
+        });
+        
+        settings.set('username', this.selectedUser);
+        settings.set('lastRoomId', this.roomId);
+        
+        // Adding a small delay for the success animation feel
+        setTimeout(() => {
+            const joinPayload = {
+                roomId: this.roomId,
+                password: pwd,
+                username: this.selectedUser,
+                color: this.selectedUser === 'Hanin' ? '#6699ff' : '#9966ff'
+            };
             
-            // Adding a small delay for the success animation feel
-            setTimeout(() => {
-                this.socket.connect();
-                this.socket.on('connected', () => {
-                    this.socket.send('join_room', {
-                        roomId: this.roomId,
-                        password: pwd,
-                        username: this.selectedUser,
-                        color: this.selectedUser === 'Hanin' ? '#6699ff' : '#9966ff'
-                    });
-                });
-            }, 300);
-        } else {
-            // Shake effect or error
-            const container = document.querySelector('.password-digits');
-            container.style.transform = 'translateX(-10px)';
-            setTimeout(() => container.style.transform = 'translateX(10px)', 100);
-            setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
-            setTimeout(() => container.style.transform = 'translateX(0)', 300);
-            
-            Array.from(document.querySelectorAll('.pwd-digit')).forEach(input => {
-                input.value = '';
-                input.classList.remove('filled');
+            // Handle incorrect password from server
+            this.socket.on('error', (data) => {
+                if (data.message === 'Incorrect room password.') {
+                    // Shake effect or error
+                    const container = document.querySelector('.password-digits');
+                    container.style.transform = 'translateX(-10px)';
+                    setTimeout(() => container.style.transform = 'translateX(10px)', 100);
+                    setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
+                    setTimeout(() => container.style.transform = 'translateX(0)', 300);
+                    
+                    this.resetPasswordInputs();
+                    document.querySelector('.pwd-digit[data-index="0"]').focus();
+                }
             });
-            document.querySelector('.pwd-digit[data-index="0"]').focus();
-        }
+
+            if (this.socket.ws && this.socket.ws.readyState === 1) {
+                this.socket.send('join_room', joinPayload);
+            } else {
+                this.socket.connect();
+                // clear previous connected listeners to avoid multiple triggers
+                if (this.socket.handlers && this.socket.handlers.has('connected')) {
+                    this.socket.handlers.set('connected', []);
+                }
+                this.socket.on('connected', () => {
+                    this.socket.send('join_room', joinPayload);
+                });
+            }
+        }, 300);
     }
 
     setupSettings() {
@@ -202,10 +297,43 @@ export class UIManager {
         this.acceptMismatchBtn.addEventListener('click', () => {
             this.hashWarningModal.classList.add('hidden');
         });
+
+        this.leaveRoomBtn = document.getElementById('leave-room-btn');
+        if (this.leaveRoomBtn) {
+            this.leaveRoomBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to leave the room?')) {
+                    window.location.reload();
+                }
+            });
+        }
+
+        this.readyToggleBtn = document.getElementById('ready-toggle-btn');
+        if (this.readyToggleBtn) {
+            this.readyToggleBtn.addEventListener('click', () => {
+                const current = this.roomManager.localState.isReady;
+                this.roomManager.updateLocalState({ isReady: !current });
+                this.readyToggleBtn.textContent = !current ? 'Ready' : 'Not Ready';
+                this.readyToggleBtn.style.background = !current ? 'var(--success)' : 'var(--warning)';
+
+                // Unlock video for Safari autoplay
+                const video = document.getElementById('video-element');
+                if (video && video.src && video.paused) {
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            video.pause();
+                        }).catch(() => {
+                            // ignore
+                        });
+                    }
+                }
+            });
+        }
     }
 
     setupRoomListeners() {
         this.socket.on('room_joined', () => {
+            this.isJoining = false;
             this.flowContainer.classList.remove('active');
             this.appScreen.classList.add('active');
             document.getElementById('current-room-id').textContent = this.roomId;
@@ -260,7 +388,10 @@ export class UIManager {
 
             let statusText = [];
             if (user.buffering) statusText.push('Buffering');
-            else if (user.videoHash) statusText.push('Ready');
+            else if (user.videoHash) {
+                if (user.isReady) statusText.push('Ready');
+                else statusText.push('Loaded (Not Ready)');
+            }
             else statusText.push('No video');
 
             if (user.latency > 0) statusText.push(`${user.latency}ms`);
@@ -286,18 +417,40 @@ export class UIManager {
             `;
             
             if (this.roomManager.isHost() && !isMe) {
-                const btn = document.createElement('button');
-                btn.className = 'icon-btn';
-                btn.title = 'Make Host';
-                btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
-                btn.addEventListener('click', () => {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'user-actions';
+                actionsDiv.style.display = 'flex';
+                actionsDiv.style.gap = '6px';
+
+                const btnHost = document.createElement('button');
+                btnHost.className = 'icon-btn';
+                btnHost.title = 'Make Host';
+                btnHost.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+                btnHost.addEventListener('click', () => {
                     this.socket.send('transfer_host', { newHostId: user.id });
                 });
-                li.appendChild(btn);
+                actionsDiv.appendChild(btnHost);
+
+                const btnRemove = document.createElement('button');
+                btnRemove.className = 'icon-btn remove-user-btn';
+                btnRemove.title = 'Remove User';
+                btnRemove.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg>`;
+                btnRemove.addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to remove ${user.username} from the room?`)) {
+                        this.socket.send('remove_user', { targetUserId: user.id });
+                    }
+                });
+                actionsDiv.appendChild(btnRemove);
+
+                li.appendChild(actionsDiv);
             }
 
             this.userListEl.appendChild(li);
         });
+
+        if (this.readyToggleBtn) {
+            this.readyToggleBtn.style.display = this.roomManager.localState.videoHash ? 'inline-block' : 'none';
+        }
     }
 
     escapeHtml(unsafe) {

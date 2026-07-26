@@ -14,6 +14,7 @@ export class RoomManager {
             videoHash: null,
             videoSize: null,
             readyState: 'not_ready',
+            isReady: false,
             subtitleLoaded: false,
             buffering: false,
             latency: 0,
@@ -81,6 +82,21 @@ export class RoomManager {
         this.socket.on('room_settings_updated', (data) => {
             this.collaborative = data.collaborative;
             notifications.show(`Collaborative mode ${this.collaborative ? 'enabled' : 'disabled'}`, 'info');
+            this.emitChange();
+        });
+
+        this.socket.on('removed_from_room', (data) => {
+            alert(data.message || 'You have been removed from the room by the host.');
+            window.location.reload();
+        });
+
+        this.socket.on('user_removed', (data) => {
+            const u = this.users.get(data.userId);
+            const username = u ? u.username : (data.username || 'A user');
+            if (u) {
+                this.users.delete(data.userId);
+            }
+            notifications.show(`${username} was removed by the host`, 'info');
             this.emitChange();
         });
 

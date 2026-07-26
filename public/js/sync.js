@@ -1,11 +1,13 @@
 // sync.js
 import { throttle } from './utils.js';
+import { notifications } from './notifications.js';
 
 export class SyncEngine {
-    constructor(player, socket, roomManager) {
+    constructor(player, socket, roomManager, chatManager) {
         this.player = player;
         this.socket = socket;
         this.roomManager = roomManager;
+        this.chatManager = chatManager;
         
         this.baseSpeed = 1.0;
         this.isSyncing = false;
@@ -39,22 +41,30 @@ export class SyncEngine {
         // User intends to change state (only allow if host or collab)
         this.player.events.addEventListener('userPlay', () => {
             if (this.roomManager.canControl()) {
+                if (!this.isEveryoneReady()) {
+                    notifications.show('Cannot play until everyone is ready', 'warning');
+                    this.player.forcePause();
+                    return;
+                }
                 this.player.forcePlay();
-                this.broadcastHostState();
+                this.broadcastHostState('play');
+                this.showLocalActionPopup('played');
             }
         });
 
         this.player.events.addEventListener('userPause', () => {
             if (this.roomManager.canControl()) {
                 this.player.forcePause();
-                this.broadcastHostState();
+                this.broadcastHostState('pause');
+                this.showLocalActionPopup(`paused at ${this.formatTime(this.player.video.currentTime)}`);
             }
         });
 
         this.player.events.addEventListener('userSeek', (e) => {
             if (this.roomManager.canControl()) {
                 this.player.forceSeek(e.detail.time);
-                this.broadcastHostState();
+                this.broadcastHostState('seek');
+                this.showLocalActionPopup(`skipped to ${this.formatTime(e.detail.time)}`);
             }
         });
 
@@ -62,7 +72,7 @@ export class SyncEngine {
             if (this.roomManager.canControl()) {
                 this.baseSpeed = e.detail.speed;
                 this.player.setPlaybackRate(this.baseSpeed);
-                this.broadcastHostState();
+                this.broadcastHostState('speed');
             } else {
                 // Revert UI to match host if not allowed
                 document.getElementById('playback-speed').value = this.baseSpeed;
@@ -89,6 +99,12 @@ export class SyncEngine {
             this.baseSpeed = data.speed;
             document.getElementById('playback-speed').value = this.baseSpeed;
             
+            if (data.action && data.username && this.chatManager) {
+                if (data.action === 'play') this.chatManager.showActionPopup(`${data.username} played`);
+                else if (data.action === 'pause') this.chatManager.showActionPopup(`${data.username} paused at ${this.formatTime(data.time)}`);
+                else if (data.action === 'seek') this.chatManager.showActionPopup(`${data.username} skipped to ${this.formatTime(data.time)}`);
+            }
+
             // Immediate reaction to major state changes
             if (data.playing !== !this.player.video.paused) {
                 if (data.playing) this.player.forcePlay();
@@ -97,22 +113,52 @@ export class SyncEngine {
             
             this.driftCorrectionLoop();
         });
+
+        this.socket.on('room_state_change', () => {
+            if (this.roomManager.isHost() && !this.player.video.paused) {
+                if (!this.isEveryoneReady()) {
+                    this.player.forcePause();
+                    this.broadcastHostState();
+                    notifications.show('Paused because a user is not ready', 'warning');
+                }
+            }
+        });
     }
 
-    broadcastHostState() {
+    broadcastHostState(action = null) {
         if (!this.player.video || !this.roomManager.canControl()) return;
         
         const state = {
             playing: !this.player.video.paused,
             time: this.player.video.currentTime,
-            speed: this.baseSpeed
+            speed: this.baseSpeed,
+            action: action
         };
         this.socket.send('sync_playback', state);
     }
 
+    showLocalActionPopup(actionText) {
+        if (this.chatManager) {
+            const me = this.roomManager.users.get(this.roomManager.myId);
+            const username = me ? me.username : 'You';
+            this.chatManager.showActionPopup(`${username} ${actionText}`);
+        }
+    }
+
+    formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) return '00:00';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) {
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
     driftCorrectionLoop() {
         if (this.roomManager.isHost() || !this.player.currentFile) {
-            this.syncStatusEl.textContent = 'Sync: Host';
+            this.syncStatusEl.textContent = '';
             this.syncStatusEl.style.color = 'var(--text-secondary)';
             return;
         }
@@ -172,5 +218,13 @@ export class SyncEngine {
             this.syncStatusEl.textContent = 'Sync: Perfect';
             this.syncStatusEl.style.color = 'var(--success)';
         }
+    }
+
+    isEveryoneReady() {
+        if (!this.roomManager.users || this.roomManager.users.size === 0) return false;
+        for (const user of this.roomManager.users.values()) {
+            if (!user.isReady) return false;
+        }
+        return true;
     }
 }
