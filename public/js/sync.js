@@ -64,7 +64,7 @@ export class SyncEngine {
         this.player.events.addEventListener('userSeek', (e) => {
             if (this.roomManager.canControl()) {
                 this.player.forceSeek(e.detail.time);
-                this.broadcastHostState('seek');
+                this.broadcastHostState('seek', e.detail.time);
                 this.showLocalActionPopup(`skipped to ${this.formatTime(e.detail.time)}`);
             }
         });
@@ -116,11 +116,16 @@ export class SyncEngine {
 
             // Immediate reaction to major state changes
             if (data.playing !== !this.player.video.paused) {
-                if (data.playing) this.player.forcePlay();
-                else this.player.forcePause();
+                if (data.playing) {
+                    this.player.forcePlay();
+                } else if (data.action === 'pause') {
+                    this.player.forcePause();
+                }
             }
             
-            this.driftCorrectionLoop();
+            if (!this.player.isSeeking && !this.player.video.seeking) {
+                this.driftCorrectionLoop();
+            }
         });
 
         this.socket.on('room_state_change', () => {
@@ -134,12 +139,21 @@ export class SyncEngine {
         });
     }
 
-    broadcastHostState(action = null) {
+    broadcastHostState(action = null, overrideTime = null) {
         if (!this.player.video || !this.roomManager.canControl()) return;
         
+        if (!action && overrideTime === null && (this.player.isSeeking || this.player.video.seeking)) {
+            return;
+        }
+
+        const currentTime = overrideTime !== null ? overrideTime :
+            ((this.player.isSeeking || this.player.video.seeking) && this.player.targetSeekTime !== undefined
+                ? this.player.targetSeekTime
+                : this.player.video.currentTime);
+
         const state = {
             playing: !this.player.video.paused,
-            time: this.player.video.currentTime,
+            time: currentTime,
             speed: this.baseSpeed,
             action: action
         };
@@ -173,7 +187,7 @@ export class SyncEngine {
             return;
         }
 
-        if (this.player.video.readyState < 2) return; // Not ready
+        if (this.player.video.readyState < 2 || this.player.isSeeking || this.player.video.seeking) return; // Not ready or currently seeking
 
         // Calculate expected time based on when the server received the host's update
         // We factor in our latency to the server.
@@ -198,9 +212,9 @@ export class SyncEngine {
             }
         };
 
-        // If paused, just ensure we are at the right frame
+        // If host is paused, only seek if we are also paused and out of sync
         if (!this.remoteState.playing) {
-            if (Math.abs(drift) > 0.5) {
+            if (this.player.video.paused && Math.abs(drift) > 0.5) {
                 this.player.forceSeek(this.remoteState.time);
             }
             setRateSmoothly(this.baseSpeed);

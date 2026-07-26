@@ -91,34 +91,169 @@ export class ChatManager {
         }
     }
 
+    getOverlayTarget() {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) {
+            return (fsEl.tagName && fsEl.tagName.toLowerCase() === 'video') ? (fsEl.parentNode || document.body) : fsEl;
+        }
+        const fullscreenWrapper = document.querySelector('.player-wrapper.is-fullscreen');
+        if (fullscreenWrapper) {
+            return fullscreenWrapper;
+        }
+        return document.querySelector('.player-content') || document.querySelector('.player-wrapper') || document.body;
+    }
+
     showFloatingEmoji(emoji) {
+        const container = this.getOverlayTarget();
+        if (!container) return;
+
+        const popup = document.createElement('div');
+        popup.className = 'center-emoji-popup';
+
+        // Offset slightly if multiple emojis appear
+        const offsetX = Math.floor(Math.random() * 40 - 20);
+        const offsetY = Math.floor(Math.random() * 40 - 20);
+        popup.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+
+        if (container === document.body) {
+            popup.style.position = 'fixed';
+        } else {
+            popup.style.position = 'absolute';
+        }
+
+        // Background particle canvas
+        const canvas = document.createElement('canvas');
+        canvas.className = 'emoji-particle-canvas';
+        popup.appendChild(canvas);
+
+        // Emoji display element
         const el = document.createElement('div');
-        el.className = 'floating-emoji';
+        el.className = 'center-emoji-el';
         if (emoji === 'three' || emoji === '/assets/emojis/three.png' || (typeof emoji === 'string' && emoji.startsWith('/assets/emojis/') && emoji.endsWith('.png'))) {
             const img = document.createElement('img');
             img.src = emoji === 'three' ? '/assets/emojis/three.png' : emoji;
-            img.alt = 'Three';
-            img.style.width = '1em';
-            img.style.height = '1em';
-            img.style.objectFit = 'contain';
-            img.style.pointerEvents = 'none';
-            img.style.display = 'block';
+            img.alt = 'Emoji';
+            img.className = 'center-emoji-img';
             el.appendChild(img);
         } else {
             el.textContent = emoji;
         }
-        // Float up from bottom center above toolbar where reactions are triggered
-        const randomX = Math.floor(Math.random() * 30) + 35; 
-        el.style.left = `${randomX}%`;
-        el.style.bottom = '75px';
-        
-        const container = document.querySelector('.player-content');
-        if (container) {
-            container.appendChild(el);
+        popup.appendChild(el);
+
+        container.appendChild(popup);
+
+        // Size canvas to popup dimensions
+        const rect = popup.getBoundingClientRect();
+        canvas.width = rect.width || 360;
+        canvas.height = rect.height || 360;
+
+        // Animate bursting background particles
+        this.animateEmojiParticles(canvas, () => {
+            popup.classList.add('fade-out');
             setTimeout(() => {
-                if (el.parentNode) el.parentNode.removeChild(el);
-            }, 2000);
+                if (popup.parentNode) {
+                    popup.parentNode.removeChild(popup);
+                }
+            }, 500);
+        });
+    }
+
+    animateEmojiParticles(canvas, onComplete) {
+        const ctx = canvas.getContext('2d');
+        const colors = [
+            '#FFD700', '#FF6B6B', '#4ECDC4', '#A8E6CF', 
+            '#FF8C00', '#FF69B4', '#00E676', '#70A1FF', '#FFFFFF'
+        ];
+        const particleCount = 45;
+        const particles = [];
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 7 + 2;
+            particles.push({
+                x: centerX,
+                y: centerY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 1.2,
+                size: Math.random() * 8 + 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                opacity: 1,
+                drag: 0.94,
+                gravity: 0.08,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10,
+                shape: Math.random() > 0.5 ? 'circle' : (Math.random() > 0.5 ? 'star' : 'diamond')
+            });
         }
+
+        const startTime = Date.now();
+        const duration = 2400;
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let activeCount = 0;
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.vx *= p.drag;
+                p.vy *= p.drag;
+                p.vy += p.gravity;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rotation += p.rotationSpeed;
+
+                if (progress > 0.65) {
+                    p.opacity = Math.max(0, 1 - (progress - 0.65) / 0.35);
+                }
+
+                if (p.opacity > 0.01) {
+                    activeCount++;
+                    ctx.save();
+                    ctx.globalAlpha = p.opacity;
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+
+                    if (p.shape === 'circle') {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (p.shape === 'diamond') {
+                        ctx.beginPath();
+                        ctx.moveTo(0, -p.size);
+                        ctx.lineTo(p.size * 0.6, 0);
+                        ctx.lineTo(0, p.size);
+                        ctx.lineTo(-p.size * 0.6, 0);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else {
+                        ctx.beginPath();
+                        for (let j = 0; j < 5; j++) {
+                            const a = (j * 4 * Math.PI) / 5 - Math.PI / 2;
+                            const r = p.size;
+                            ctx.lineTo(r * Math.cos(a), r * Math.sin(a));
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            if (elapsed < duration && activeCount > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                if (onComplete) onComplete();
+            }
+        };
+
+        requestAnimationFrame(animate);
     }
 
     showActionPopup(message) {

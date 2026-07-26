@@ -8,8 +8,44 @@ export class SpecialEffectsManager {
             rotten_tomato: false
         };
 
+        this.goldenBuzzerIcons = [
+            '/img/buzzers/golden-buzzer.png',
+            '/img/buzzers/golden-buzzer-1.png',
+            '/img/buzzers/golden-buzzer-2.png',
+            '/img/buzzers/golden-buzzer-3.png'
+        ];
+        this.rottenTomatoIcons = [
+            '/img/buzzers/rotten-tomato.png',
+            '/img/buzzers/rotten-tomato-1.png',
+            '/img/buzzers/rotten-tomato-2.png',
+            '/img/buzzers/rotten-tomato-3.png',
+            '/img/buzzers/rotten-tomato-4.png',
+            '/img/buzzers/rotten-tomato-5.png',
+            '/img/buzzers/rotten-tomato-6.png'
+        ];
+
         this.setupListeners();
         this.setupUI();
+    }
+
+    getRandomGoldenBuzzerIcon() {
+        return this.goldenBuzzerIcons[Math.floor(Math.random() * this.goldenBuzzerIcons.length)];
+    }
+
+    getRandomRottenTomatoIcon() {
+        return this.rottenTomatoIcons[Math.floor(Math.random() * this.rottenTomatoIcons.length)];
+    }
+
+    getOverlayTarget() {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) {
+            return (fsEl.tagName && fsEl.tagName.toLowerCase() === 'video') ? (fsEl.parentNode || document.body) : fsEl;
+        }
+        const fullscreenWrapper = document.querySelector('.player-wrapper.is-fullscreen');
+        if (fullscreenWrapper) {
+            return fullscreenWrapper;
+        }
+        return document.body;
     }
 
     setupListeners() {
@@ -117,7 +153,7 @@ export class SpecialEffectsManager {
         const iconWrapper = document.createElement('div');
         iconWrapper.className = 'banner-icon-wrapper golden-icon-wrapper';
         const iconImg = document.createElement('img');
-        iconImg.src = '/img/buzzers/golden-buzzer.png';
+        iconImg.src = this.getRandomGoldenBuzzerIcon();
         iconImg.alt = 'Golden Buzzer';
         iconWrapper.appendChild(iconImg);
 
@@ -126,11 +162,24 @@ export class SpecialEffectsManager {
         banner.appendChild(title);
         overlay.appendChild(banner);
 
-        document.body.appendChild(overlay);
+        const targetContainer = this.getOverlayTarget();
+        if (targetContainer !== document.body) {
+            overlay.style.position = 'absolute';
+            overlay.style.inset = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+        } else {
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+        }
+        targetContainer.appendChild(overlay);
 
         // Resize canvas
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const rect = targetContainer.getBoundingClientRect();
+        const width = rect.width || window.innerWidth;
+        const height = rect.height || window.innerHeight;
         canvas.width = width;
         canvas.height = height;
 
@@ -259,7 +308,7 @@ export class SpecialEffectsManager {
             splatterEl.style.animationDelay = `${randomDelay}ms`;
 
             const img = document.createElement('img');
-            img.src = '/img/buzzers/rotten-tomato.png';
+            img.src = this.getRandomRottenTomatoIcon();
             img.alt = 'Rotten Tomato';
             splatterEl.appendChild(img);
 
@@ -289,7 +338,7 @@ export class SpecialEffectsManager {
         const iconWrapper = document.createElement('div');
         iconWrapper.className = 'banner-icon-wrapper tomato-icon-wrapper';
         const iconImg = document.createElement('img');
-        iconImg.src = '/img/buzzers/rotten-tomato.png';
+        iconImg.src = this.getRandomRottenTomatoIcon();
         iconImg.alt = 'Rotten Tomato';
         iconWrapper.appendChild(iconImg);
 
@@ -298,11 +347,24 @@ export class SpecialEffectsManager {
         banner.appendChild(title);
         overlay.appendChild(banner);
 
-        document.body.appendChild(overlay);
+        const targetContainer = this.getOverlayTarget();
+        if (targetContainer !== document.body) {
+            overlay.style.position = 'absolute';
+            overlay.style.inset = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+        } else {
+            overlay.style.position = 'fixed';
+            overlay.style.inset = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+        }
+        targetContainer.appendChild(overlay);
 
         // Resize canvas
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const rect = targetContainer.getBoundingClientRect();
+        const width = rect.width || window.innerWidth;
+        const height = rect.height || window.innerHeight;
         canvas.width = width;
         canvas.height = height;
 

@@ -1,8 +1,89 @@
 // player.js
 import { formatTime, formatBytes } from './utils.js';
 
+class RecentFilesDB {
+    constructor() {
+        this.dbName = 'syncparty_recent_files_db';
+        this.storeName = 'recent_files';
+        this.dbPromise = null;
+    }
+
+    getDB() {
+        if (this.dbPromise) return this.dbPromise;
+        this.dbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open(this.dbName, 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+        return this.dbPromise;
+    }
+
+    async saveFile(file) {
+        try {
+            const db = await this.getDB();
+            const id = `${file.name}_${file.size}`;
+            const record = {
+                id,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastUsed: Date.now(),
+                file: file
+            };
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readwrite');
+                const store = tx.objectStore(this.storeName);
+                const putReq = store.put(record);
+                putReq.onsuccess = () => resolve();
+                putReq.onerror = (e) => reject(e.target.error);
+            });
+
+            const all = await this.getAll();
+            if (all.length > 3) {
+                const toRemove = all.slice(3);
+                const tx = await new Promise((resolve, reject) => {
+                    const tx = db.transaction(this.storeName, 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+                    toRemove.forEach(r => store.delete(r.id));
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = (e) => reject(e.target.error);
+                });
+            }
+        } catch (err) {
+            console.warn('Could not save recent file to IndexedDB:', err);
+        }
+    }
+
+    async getAll() {
+        try {
+            const db = await this.getDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this.storeName, 'readonly');
+                const store = tx.objectStore(this.storeName);
+                const req = store.getAll();
+                req.onsuccess = () => {
+                    const list = req.result || [];
+                    list.sort((a, b) => b.lastUsed - a.lastUsed);
+                    resolve(list.slice(0, 3));
+                };
+                req.onerror = (e) => reject(e.target.error);
+            });
+        } catch (err) {
+            console.warn('Could not fetch recent files:', err);
+            return [];
+        }
+    }
+}
+
 export class VideoPlayer {
     constructor() {
+        this.recentFilesDB = new RecentFilesDB();
         this.video = document.getElementById('video-element');
         this.dropZone = document.getElementById('drop-zone');
         this.fileInput = document.getElementById('file-input');
@@ -15,14 +96,20 @@ export class VideoPlayer {
         this.muteBtn = document.getElementById('mute-btn');
         this.volumeSlider = document.getElementById('volume-slider');
         this.volumeIcon = document.getElementById('volume-icon');
+        this._previousVolume = 1;
+        this.isSeeking = false;
         
         // Load saved volume
         try {
             const savedVol = localStorage.getItem('syncparty_volume');
             if (savedVol !== null) {
-                this.video.volume = parseFloat(savedVol);
+                const vol = parseFloat(savedVol);
+                this.video.volume = vol;
                 if (this.volumeSlider) this.volumeSlider.value = savedVol;
+                if (vol > 0) this._previousVolume = vol;
                 setTimeout(() => this.updateVolumeIcon(), 0);
+            } else if (this.video.volume > 0) {
+                this._previousVolume = this.video.volume;
             }
         } catch(e) {}
         
@@ -62,6 +149,7 @@ export class VideoPlayer {
     setupFileHandling() {
         const handleFile = (file) => {
             if (!file) return;
+            this.handleFileCallback = handleFile;
             const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mkv|mov|avi|m4v)$/i);
             if (!isVideo) return;
             
@@ -92,6 +180,10 @@ export class VideoPlayer {
             this.fileNameEl.textContent = file.name;
             this.fileNameEl.title = file.name;
             this.fileSizeEl.textContent = formatBytes(file.size);
+            
+            if (this.recentFilesDB) {
+                this.recentFilesDB.saveFile(file).then(() => this.refreshRecentFilesUI());
+            }
             
             this.events.dispatchEvent(new CustomEvent('fileLoaded', { detail: { file } }));
         };
@@ -125,7 +217,63 @@ export class VideoPlayer {
                 handleFile(e.dataTransfer.files[0]);
             }
         });
+
+        this.recentBtn = document.getElementById('recent-videos-btn');
+        this.recentDropdown = document.getElementById('recent-videos-dropdown');
+        this.recentListEl = document.getElementById('recent-videos-list');
+
+        if (this.recentBtn && this.recentDropdown) {
+            this.recentBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = this.recentDropdown.classList.contains('hidden');
+                if (isHidden) {
+                    this.refreshRecentFilesUI();
+                    this.recentDropdown.classList.remove('hidden');
+                } else {
+                    this.recentDropdown.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!this.recentDropdown.contains(e.target) && !this.recentBtn.contains(e.target)) {
+                    this.recentDropdown.classList.add('hidden');
+                }
+            });
+        }
+        this.refreshRecentFilesUI();
     }
+
+    async refreshRecentFilesUI() {
+        if (!this.recentListEl || !this.recentFilesDB) return;
+        const records = await this.recentFilesDB.getAll();
+        this.recentListEl.innerHTML = '';
+        if (!records || records.length === 0) {
+            const emptyLi = document.createElement('li');
+            emptyLi.className = 'recent-video-empty';
+            emptyLi.textContent = 'No recent files';
+            this.recentListEl.appendChild(emptyLi);
+            return;
+        }
+
+        records.forEach(record => {
+            const li = document.createElement('li');
+            li.className = 'recent-video-item';
+            li.innerHTML = `
+                <div class="recent-video-name">${record.name}</div>
+                <div class="recent-video-size">${formatBytes(record.size)}</div>
+            `;
+            li.addEventListener('click', () => {
+                if (record.file && this.handleFileCallback) {
+                    this.handleFileCallback(record.file);
+                    if (this.recentDropdown) {
+                        this.recentDropdown.classList.add('hidden');
+                    }
+                }
+            });
+            this.recentListEl.appendChild(li);
+        });
+    }
+
 
     setupControls() {
         this.playPauseBtn.addEventListener('click', () => {
@@ -183,13 +331,37 @@ export class VideoPlayer {
 
         if (this.muteBtn && this.volumeSlider) {
             this.muteBtn.addEventListener('click', () => {
-                this.video.muted = !this.video.muted;
+                const isCurrentlyMuted = this.video.muted || parseFloat(this.volumeSlider.value) === 0 || this.video.volume === 0;
+                if (isCurrentlyMuted) {
+                    const restoreVol = (this._previousVolume && this._previousVolume > 0) ? this._previousVolume : 1;
+                    this.video.muted = false;
+                    this.video.volume = restoreVol;
+                    this.volumeSlider.value = restoreVol;
+                    try {
+                        localStorage.setItem('syncparty_volume', restoreVol);
+                    } catch(err) {}
+                } else {
+                    const currentSliderVal = parseFloat(this.volumeSlider.value);
+                    if (currentSliderVal > 0) {
+                        this._previousVolume = currentSliderVal;
+                    }
+                    this.video.muted = true;
+                    this.video.volume = 0;
+                    this.volumeSlider.value = 0;
+                    try {
+                        localStorage.setItem('syncparty_volume', 0);
+                    } catch(err) {}
+                }
                 this.updateVolumeIcon();
             });
 
             this.volumeSlider.addEventListener('input', (e) => {
-                this.video.volume = e.target.value;
-                this.video.muted = false;
+                const val = parseFloat(e.target.value);
+                this.video.volume = val;
+                this.video.muted = (val === 0);
+                if (val > 0) {
+                    this._previousVolume = val;
+                }
                 this.updateVolumeIcon();
                 try {
                     localStorage.setItem('syncparty_volume', e.target.value);
@@ -240,6 +412,10 @@ export class VideoPlayer {
             }
             
             if (triggerSeek) {
+                this.isSeeking = true;
+                this.targetSeekTime = targetTime;
+                clearTimeout(this._seekTimeout);
+                this._seekTimeout = setTimeout(() => { this.isSeeking = false; }, 3000);
                 this.events.dispatchEvent(new CustomEvent('userSeek', { detail: { time: targetTime } }));
             }
         };
@@ -370,7 +546,26 @@ export class VideoPlayer {
         });
 
         this.video.addEventListener('timeupdate', () => {
-            if (this.isDragging) return;
+            if (this.isDragging || this.isSeeking || this.video.seeking) return;
+            this.currentTimeEl.textContent = formatTime(this.video.currentTime);
+            if (this.video.duration) {
+                const percent = (this.video.currentTime / this.video.duration) * 100;
+                this.progressFilled.style.width = `${percent}%`;
+                if (this.playhead) this.playhead.style.left = `${percent}%`;
+            }
+        });
+
+        this.video.addEventListener('seeking', () => {
+            this.isSeeking = true;
+            clearTimeout(this._seekTimeout);
+            this._seekTimeout = setTimeout(() => {
+                this.isSeeking = false;
+            }, 3000);
+        });
+
+        this.video.addEventListener('seeked', () => {
+            this.isSeeking = false;
+            clearTimeout(this._seekTimeout);
             this.currentTimeEl.textContent = formatTime(this.video.currentTime);
             if (this.video.duration) {
                 const percent = (this.video.currentTime / this.video.duration) * 100;
@@ -423,6 +618,12 @@ export class VideoPlayer {
 
     forceSeek(time) {
         if (Math.abs(this.video.currentTime - time) > 0.1) {
+            this.isSeeking = true;
+            this.targetSeekTime = time;
+            clearTimeout(this._seekTimeout);
+            this._seekTimeout = setTimeout(() => {
+                this.isSeeking = false;
+            }, 3000);
             this.video.currentTime = time;
         }
     }
@@ -462,7 +663,7 @@ export class VideoPlayer {
 
     updateVolumeIcon() {
         if (!this.volumeIcon) return;
-        if (this.video.muted || this.video.volume === 0) {
+        if (this.video.muted || this.video.volume === 0 || (this.volumeSlider && parseFloat(this.volumeSlider.value) === 0)) {
             this.volumeIcon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>`;
         } else if (this.video.volume < 0.5) {
             this.volumeIcon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>`;
