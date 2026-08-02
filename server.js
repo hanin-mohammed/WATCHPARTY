@@ -8,6 +8,21 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const livenessInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            try { ws.terminate(); } catch (e) {}
+            return;
+        }
+        ws.isAlive = false;
+        try { ws.ping(); } catch (e) {}
+    });
+}, 30000);
+
+wss.on('close', () => {
+    clearInterval(livenessInterval);
+});
+
 const PORT = process.env.PORT || 3000;
 
 // Serve static files from the 'public' directory
@@ -38,6 +53,11 @@ function sendToUser(ws, message) {
 }
 
 wss.on('connection', (ws, req) => {
+    ws.isAlive = true;
+    ws.on('pong', () => {
+        ws.isAlive = true;
+    });
+
     let currentRoomId = null;
     let currentUserId = null;
 
@@ -66,10 +86,12 @@ wss.on('connection', (ws, req) => {
 
                     currentRoomId = roomId;
 
+                    const cleanUserPwd = (password || '').toString().trim();
+
                     if (!rooms.has(roomId)) {
                         // Create room
                         rooms.set(roomId, {
-                            password: password || null,
+                            password: cleanUserPwd || null,
                             hostId: userId || uuidv4(),
                             users: new Map(),
                             playbackState: { playing: false, time: 0, speed: 1, updatedAt: Date.now() },
@@ -80,9 +102,9 @@ wss.on('connection', (ws, req) => {
                     const room = rooms.get(roomId);
 
                     // Check room password
-                    if (room.password && room.password !== password && room.users.size > 0) {
+                    const cleanRoomPwd = (room.password || '').toString().trim();
+                    if (cleanRoomPwd && cleanRoomPwd !== cleanUserPwd && room.users.size > 0) {
                         sendToUser(ws, { type: 'error', payload: { message: 'Incorrect room password.' } });
-                        ws.close();
                         return;
                     }
 

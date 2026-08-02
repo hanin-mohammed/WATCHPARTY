@@ -36,7 +36,9 @@ export class SyncEngine {
         this.throttledHostBroadcast = throttle(() => this.broadcastHostState(), 500);
         setInterval(() => {
             if (this.roomManager.isHost() && this.player.video && this.player.video.readyState >= 2 && !this.isApplyingRemoteState) {
-                this.throttledHostBroadcast();
+                if (Date.now() - (this.lastLocalActionTime || 0) > 1500 && Date.now() - (this.remoteState.updatedAt || 0) > 1500) {
+                    this.throttledHostBroadcast();
+                }
             }
         }, 1000);
     }
@@ -95,8 +97,7 @@ export class SyncEngine {
         this.player.events.addEventListener('stateChange', (e) => {
             if (this.roomManager.canControl() && !this.isApplyingRemoteState) {
                 // Prevent duplicate broadcast if this stateChange was just triggered by userPlay/userPause
-                if (Date.now() - (this.lastLocalActionTime || 0) > 250) {
-                    this.lastLocalActionTime = Date.now();
+                if (Date.now() - (this.lastLocalActionTime || 0) > 500) {
                     const action = (e.detail && e.detail.playing) ? 'play' : 'pause';
                     this.broadcastHostState(action);
                 }
@@ -108,20 +109,27 @@ export class SyncEngine {
         this.socket.on('sync_playback', (data) => {
             if (data.userId === this.roomManager.myId) return; // Ignore our own sync messages
             
-            // Ignore stale incoming sync messages for 2000ms after a local control action (seek/play/pause)
-            if (Date.now() - (this.lastLocalActionTime || 0) < 2000) {
+            // Ignore stale incoming sync messages for 1500ms after a local control action (seek/play/pause)
+            if (Date.now() - (this.lastLocalActionTime || 0) < 1500) {
                 return;
             }
 
             this.isApplyingRemoteState = true;
+            this.lastLocalActionTime = 0;
             clearTimeout(this._remoteStateTimeout);
             this._remoteStateTimeout = setTimeout(() => {
                 this.isApplyingRemoteState = false;
             }, 1000);
             
-            this.remoteState = data;
+            this.remoteState = {
+                playing: data.playing,
+                time: data.time,
+                speed: data.speed,
+                updatedAt: Date.now()
+            };
             this.baseSpeed = data.speed;
-            document.getElementById('playback-speed').value = this.baseSpeed;
+            const speedEl = document.getElementById('playback-speed');
+            if (speedEl) speedEl.value = this.baseSpeed;
             if (Math.abs(this.player.video.playbackRate - this.baseSpeed) > 0.001) {
                 this.player.setPlaybackRate(this.baseSpeed);
             }
@@ -181,6 +189,12 @@ export class SyncEngine {
             speed: this.baseSpeed,
             action: action
         };
+        this.remoteState = {
+            playing: state.playing,
+            time: state.time,
+            speed: state.speed,
+            updatedAt: Date.now()
+        };
         this.socket.send('sync_playback', state);
     }
 
@@ -204,14 +218,26 @@ export class SyncEngine {
     }
 
     driftCorrectionLoop() {
-        if (this.roomManager.isHost() || !this.player.currentFile || this.isApplyingRemoteState) {
+        if (this.roomManager.isHost() || !this.player.currentFile) {
             this.syncStatusEl.textContent = '';
             this.syncStatusEl.style.color = 'var(--text-secondary)';
             this.isCorrectingDrift = false;
             return;
         }
 
+        if (this.isApplyingRemoteState) {
+            if (!this.remoteState.playing) {
+                this.syncStatusEl.textContent = 'Sync: Paused';
+                this.syncStatusEl.style.color = 'var(--text-secondary)';
+            } else if (this.syncStatusEl.textContent === 'Sync: Paused') {
+                this.syncStatusEl.textContent = 'Sync: Perfect';
+                this.syncStatusEl.style.color = 'var(--success)';
+            }
+            return;
+        }
+
         if (this.player.video.readyState < 2 || this.player.isSeeking || this.player.video.seeking) return; // Not ready or currently seeking
+        if (Date.now() - (this.lastLocalActionTime || 0) < 2000) return; // Allow recent local actions to settle
 
         // Calculate expected time based on when the server received the host's update
         // We factor in our latency to the server.

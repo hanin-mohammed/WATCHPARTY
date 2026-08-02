@@ -60,11 +60,23 @@ export class UIManager {
         return uid;
     }
 
+    rejoinRoom() {
+        if (!this.lastJoinPayload || !this.roomManager.roomId) return;
+        this.lastJoinPayload.videoHash = this.roomManager.localState.videoHash || null;
+        this.lastJoinPayload.videoSize = this.roomManager.localState.videoSize || null;
+        this.lastJoinPayload.readyState = this.roomManager.localState.readyState || 'not_ready';
+        this.lastJoinPayload.isReady = this.roomManager.localState.isReady || false;
+        this.lastJoinPayload.subtitleLoaded = this.roomManager.localState.subtitleLoaded || false;
+        this.socket.send('join_room', this.lastJoinPayload);
+    }
+
     setupVisibilityListener() {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 if (this.socket && (!this.socket.ws || this.socket.ws.readyState !== 1)) {
                     this.socket.connect();
+                } else if (this.socket && this.socket.ws && this.socket.ws.readyState === 1 && this.lastJoinPayload && this.roomManager.roomId) {
+                    this.rejoinRoom();
                 }
             }
         });
@@ -227,25 +239,58 @@ export class UIManager {
         }
 
         const digits = Array.from(document.querySelectorAll('.pwd-digit'));
+        const checkAutoSubmit = () => {
+            if (this.isJoining) return;
+            const pwd = digits.map(i => i.value.trim()).join('');
+            if (pwd.length === 6 && /^\d{6}$/.test(pwd)) {
+                digits[digits.length - 1].blur();
+                this.validatePassword();
+            }
+        };
+
         digits.forEach((input, idx) => {
             input.addEventListener('input', (e) => {
                 if (this.isJoining) return;
-                if (input.value.length === 1) {
+                let val = input.value.trim().replace(/\D/g, '');
+                if (val.length > 1) {
+                    const chars = val.split('');
+                    chars.forEach((c, i) => {
+                        const targetIdx = idx + i;
+                        if (targetIdx < digits.length) {
+                            digits[targetIdx].value = c;
+                            digits[targetIdx].classList.add('filled');
+                        }
+                    });
+                    const lastFilled = Math.min(idx + chars.length - 1, digits.length - 1);
+                    if (lastFilled < digits.length - 1) {
+                        digits[lastFilled + 1].focus();
+                    } else {
+                        digits[digits.length - 1].blur();
+                    }
+                    checkAutoSubmit();
+                    return;
+                }
+                if (val.length === 1) {
+                    input.value = val;
                     input.classList.add('filled');
                     if (idx < digits.length - 1) {
                         digits[idx + 1].focus();
                     } else {
                         input.blur();
-                        this.validatePassword();
                     }
+                    checkAutoSubmit();
                 } else {
+                    input.value = '';
                     input.classList.remove('filled');
                 }
             });
 
             input.addEventListener('keydown', (e) => {
                 if (this.isJoining) return;
-                if (e.key === 'Backspace' && input.value === '') {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    checkAutoSubmit();
+                } else if (e.key === 'Backspace' && input.value === '') {
                     if (idx > 0) {
                         digits[idx - 1].focus();
                         digits[idx - 1].value = '';
@@ -256,15 +301,25 @@ export class UIManager {
 
             input.addEventListener('paste', (e) => {
                 if (this.isJoining) return;
-                const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
-                if (/^\d{6}$/.test(pasteData)) {
-                    e.preventDefault();
+                e.preventDefault();
+                const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/\D/g, '');
+                if (pasteData.length > 0) {
                     digits.forEach((d, i) => {
-                        d.value = pasteData[i];
-                        d.classList.add('filled');
+                        if (i < pasteData.length) {
+                            d.value = pasteData[i];
+                            d.classList.add('filled');
+                        } else {
+                            d.value = '';
+                            d.classList.remove('filled');
+                        }
                     });
-                    digits[digits.length - 1].blur();
-                    this.validatePassword();
+                    const focusIdx = Math.min(pasteData.length, digits.length - 1);
+                    if (pasteData.length >= digits.length) {
+                        digits[digits.length - 1].blur();
+                    } else {
+                        digits[focusIdx].focus();
+                    }
+                    checkAutoSubmit();
                 }
             });
         });
@@ -272,9 +327,13 @@ export class UIManager {
 
     validatePassword() {
         if (this.isJoining) return;
-        this.isJoining = true;
 
-        const pwd = Array.from(document.querySelectorAll('.pwd-digit')).map(i => i.value).join('');
+        const pwd = Array.from(document.querySelectorAll('.pwd-digit')).map(i => i.value.trim()).join('');
+        if (pwd.length !== 6 || !/^\d{6}$/.test(pwd)) {
+            return;
+        }
+
+        this.isJoining = true;
 
         document.querySelectorAll('.pwd-digit').forEach(input => {
             input.disabled = true;
@@ -298,36 +357,21 @@ export class UIManager {
                 isReady: this.roomManager.localState.isReady || false,
                 subtitleLoaded: this.roomManager.localState.subtitleLoaded || false
             };
-            
-            // Handle incorrect password from server
-            this.socket.on('error', (data) => {
-                if (data.message === 'Incorrect room password.') {
-                    // Shake effect or error
-                    const container = document.querySelector('.password-digits');
-                    if (container) {
-                        container.style.transform = 'translateX(-10px)';
-                        setTimeout(() => container.style.transform = 'translateX(10px)', 100);
-                        setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
-                        setTimeout(() => container.style.transform = 'translateX(0)', 300);
-                    }
-                    
-                    this.resetPasswordInputs();
-                    const firstDigit = document.querySelector('.pwd-digit[data-index="0"]');
-                    if (firstDigit) firstDigit.focus();
-                }
-            });
+
+            this.lastJoinPayload = joinPayload;
 
             if (this.socket.ws && this.socket.ws.readyState === 1) {
                 this.socket.send('join_room', joinPayload);
             } else {
                 this.socket.connect();
-                // clear previous connected listeners to avoid multiple triggers
-                if (this.socket.handlers && this.socket.handlers.has('connected')) {
-                    this.socket.handlers.set('connected', []);
-                }
-                this.socket.on('connected', () => {
+                const tempHandler = () => {
                     this.socket.send('join_room', joinPayload);
-                });
+                    const handlers = this.socket.handlers.get('connected');
+                    if (handlers) {
+                        this.socket.handlers.set('connected', handlers.filter(h => h !== tempHandler));
+                    }
+                };
+                this.socket.on('connected', tempHandler);
             }
         }, 300);
     }
@@ -413,6 +457,28 @@ export class UIManager {
     }
 
     setupRoomListeners() {
+        this.socket.on('error', (data) => {
+            if (data.message === 'Incorrect room password.') {
+                this.isJoining = false;
+                const container = document.querySelector('.password-digits');
+                if (container) {
+                    container.style.transform = 'translateX(-10px)';
+                    setTimeout(() => container.style.transform = 'translateX(10px)', 100);
+                    setTimeout(() => container.style.transform = 'translateX(-10px)', 200);
+                    setTimeout(() => container.style.transform = 'translateX(0)', 300);
+                }
+                this.resetPasswordInputs();
+                const firstDigit = document.querySelector('.pwd-digit[data-index="0"]');
+                if (firstDigit) firstDigit.focus();
+            }
+        });
+
+        this.socket.on('connected', () => {
+            if (this.lastJoinPayload && this.roomManager.roomId) {
+                this.rejoinRoom();
+            }
+        });
+
         this.socket.on('room_joined', () => {
             this.isJoining = false;
             this.flowContainer.classList.remove('active');

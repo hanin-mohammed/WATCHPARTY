@@ -107,6 +107,8 @@ export class VideoPlayer {
         // Controls
         this.playPauseBtn = document.getElementById('play-pause-btn');
         this.fullscreenBtn = document.getElementById('fullscreen-btn');
+        this.videoCallModeBtn = document.getElementById('video-call-mode-btn');
+        this.isVideoCallMode = false;
         this.speedSelect = document.getElementById('playback-speed');
         
         this.muteBtn = document.getElementById('mute-btn');
@@ -160,6 +162,7 @@ export class VideoPlayer {
         this.setupFileHandling();
         this.setupControls();
         this.setupVideoEvents();
+        this.setupWallpaperAnimation();
     }
 
     setupFileHandling() {
@@ -201,8 +204,12 @@ export class VideoPlayer {
                 this.previewVideo.src = this.objectUrl;
                 this.previewVideo.load();
             }
+            if (this.progressContainer) {
+                this.progressContainer.classList.add('has-video');
+            }
             
             this.dropZone.classList.add('hidden');
+            if (this.stopWallpaperAnimation) this.stopWallpaperAnimation();
             this.video.classList.remove('hidden');
             this.videoInfo.classList.remove('hidden');
             
@@ -343,7 +350,11 @@ export class VideoPlayer {
                 this.currentFile = null;
                 this.objectUrl = null;
                 this.video.src = '';
+                if (this.progressContainer) {
+                    this.progressContainer.classList.remove('has-video');
+                }
                 this.dropZone.classList.remove('hidden');
+                if (this.startWallpaperAnimation) this.startWallpaperAnimation();
                 this.video.classList.add('hidden');
                 this.videoInfo.classList.add('hidden');
                 this.fileInput.value = '';
@@ -365,12 +376,26 @@ export class VideoPlayer {
             this.toggleFullscreen();
         });
 
+        if (this.videoCallModeBtn) {
+            this.videoCallModeBtn.addEventListener('click', () => {
+                this.toggleVideoCallMode();
+            });
+        }
+
         const updateFullscreenClass = () => {
             const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
             if (fsEl) {
                 this.playerWrapper.classList.add('is-fullscreen');
             } else {
                 this.playerWrapper.classList.remove('is-fullscreen');
+                if (this.isVideoCallMode) {
+                    this.isVideoCallMode = false;
+                    this.playerWrapper.classList.remove('video-call-mode');
+                    if (this.videoCallModeBtn) {
+                        this.videoCallModeBtn.classList.remove('active');
+                        this.videoCallModeBtn.title = "Video Call Mode - Resize for PiP video call";
+                    }
+                }
             }
         };
         document.addEventListener('fullscreenchange', updateFullscreenClass);
@@ -380,6 +405,14 @@ export class VideoPlayer {
         });
         this.video.addEventListener('webkitendfullscreen', () => {
             this.playerWrapper.classList.remove('is-fullscreen');
+            if (this.isVideoCallMode) {
+                this.isVideoCallMode = false;
+                this.playerWrapper.classList.remove('video-call-mode');
+                if (this.videoCallModeBtn) {
+                    this.videoCallModeBtn.classList.remove('active');
+                    this.videoCallModeBtn.title = "Video Call Mode - Resize for PiP video call";
+                }
+            }
         });
 
         if (this.muteBtn && this.volumeSlider) {
@@ -435,7 +468,7 @@ export class VideoPlayer {
         };
 
         const updateScrub = (e, triggerSeek = false) => {
-            if (!this.video.duration) return;
+            if (!this.video.duration || isNaN(this.video.duration) || !this.progressContainer.classList.contains('has-video')) return;
             const rect = this.progressContainer.getBoundingClientRect();
             const clientX = getClientX(e);
             let pos = (clientX - rect.left) / rect.width;
@@ -518,7 +551,13 @@ export class VideoPlayer {
         document.addEventListener('touchcancel', endTouchScrub);
 
         this.progressContainer.addEventListener('mousemove', (e) => {
-            if (!this.video.duration || !this.scrubPreview) return;
+            if (!this.video.duration || isNaN(this.video.duration) || !this.scrubPreview || !this.progressContainer.classList.contains('has-video')) {
+                if (this.scrubPreview) {
+                    this.scrubPreview.style.opacity = '0';
+                    this.scrubPreview.style.visibility = 'hidden';
+                }
+                return;
+            }
             const rect = this.progressContainer.getBoundingClientRect();
             const clientX = getClientX(e);
             let pos = (clientX - rect.left) / rect.width;
@@ -557,6 +596,8 @@ export class VideoPlayer {
                 this.events.dispatchEvent(new CustomEvent('userSeek', { detail: { time: this.video.currentTime - 5 } }));
             } else if (e.code === 'KeyF') {
                 this.toggleFullscreen();
+            } else if (e.code === 'KeyV' || e.code === 'KeyP') {
+                this.toggleVideoCallMode();
             }
         });
         
@@ -566,6 +607,8 @@ export class VideoPlayer {
         let hideTimeout;
         const showControls = () => {
             this.controlsOverlay.classList.add('active');
+            const subtitleOverlay = document.getElementById('subtitle-text-overlay');
+            if (subtitleOverlay) subtitleOverlay.classList.add('toolbar-visible');
             if (this.chatOverlay) this.chatOverlay.classList.add('active');
             if (this.messageBar) this.messageBar.classList.add('active');
             this.playerWrapper.style.cursor = 'default';
@@ -576,6 +619,7 @@ export class VideoPlayer {
                 hideTimeout = setTimeout(() => {
                     if (document.activeElement === document.getElementById('chat-input')) return;
                     this.controlsOverlay.classList.remove('active');
+                    if (subtitleOverlay) subtitleOverlay.classList.remove('toolbar-visible');
                     if (this.reactionsBar) this.reactionsBar.classList.remove('active');
                     const reactionBtn = document.getElementById('reaction-mode-btn');
                     if (reactionBtn) reactionBtn.classList.remove('active');
@@ -593,6 +637,9 @@ export class VideoPlayer {
 
     setupVideoEvents() {
         this.video.addEventListener('loadedmetadata', () => {
+            if (this.progressContainer) {
+                this.progressContainer.classList.add('has-video');
+            }
             this.totalTimeEl.textContent = formatTime(this.video.duration);
             this.fileDurationEl.textContent = formatTime(this.video.duration);
             this.events.dispatchEvent(new CustomEvent('durationChange', { detail: { duration: this.video.duration } }));
@@ -714,6 +761,35 @@ export class VideoPlayer {
         }
     }
 
+    toggleVideoCallMode() {
+        const isFS = document.fullscreenElement || document.webkitFullscreenElement || (this.playerWrapper && this.playerWrapper.classList.contains('is-fullscreen'));
+        if (!isFS) {
+            if (typeof notifications !== 'undefined' && notifications.show) {
+                notifications.show('Video Call Mode only works in fullscreen mode', 'warning');
+            }
+            return;
+        }
+        this.isVideoCallMode = !this.isVideoCallMode;
+        if (this.playerWrapper) {
+            this.playerWrapper.classList.toggle('video-call-mode', this.isVideoCallMode);
+        }
+        if (this.videoCallModeBtn) {
+            this.videoCallModeBtn.classList.toggle('active', this.isVideoCallMode);
+            this.videoCallModeBtn.title = this.isVideoCallMode 
+                ? "Exit Video Call Mode" 
+                : "Video Call Mode - Resize for PiP video call";
+        }
+        if (this.isVideoCallMode) {
+            if (typeof notifications !== 'undefined' && notifications.show) {
+                notifications.show('Video Call Mode ON: Top-Right space reserved for PiP call', 'success');
+            }
+        } else {
+            if (typeof notifications !== 'undefined' && notifications.show) {
+                notifications.show('Video Call Mode OFF: Full video size restored', 'info');
+            }
+        }
+    }
+
     updateVolumeIcon() {
         if (!this.volumeIcon) return;
         if (this.video.muted || this.video.volume === 0 || (this.volumeSlider && parseFloat(this.volumeSlider.value) === 0)) {
@@ -723,5 +799,118 @@ export class VideoPlayer {
         } else {
             this.volumeIcon.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>`;
         }
+    }
+
+    setupWallpaperAnimation() {
+        const getBlobs = () => {
+            if (!this.dropZone) return [];
+            return this.dropZone.querySelectorAll('.wallpaper-blob');
+        };
+
+        const blobConfigs = [
+            {
+                baseX: 0, baseY: 0,
+                ampX1: 28, freqX1: (2 * Math.PI) / 65, phaseX1: 0.2,
+                ampX2: 14, freqX2: (2 * Math.PI) / 41, phaseX2: 1.5,
+                ampY1: 25, freqY1: (2 * Math.PI) / 72, phaseY1: 0.8,
+                ampY2: 12, freqY2: (2 * Math.PI) / 49, phaseY2: 2.1,
+                ampS: 0.18, freqS: (2 * Math.PI) / 55, phaseS: 0.5,
+                baseO: 0.85, ampO: 0.10, freqO: (2 * Math.PI) / 47, phaseO: 1.2
+            },
+            {
+                baseX: 15, baseY: -15,
+                ampX1: 32, freqX1: (2 * Math.PI) / 78, phaseX1: 2.3,
+                ampX2: 15, freqX2: (2 * Math.PI) / 46, phaseX2: 0.7,
+                ampY1: 28, freqY1: (2 * Math.PI) / 68, phaseY1: 3.1,
+                ampY2: 10, freqY2: (2 * Math.PI) / 53, phaseY2: 1.1,
+                ampS: 0.20, freqS: (2 * Math.PI) / 62, phaseS: 2.0,
+                baseO: 0.80, ampO: 0.12, freqO: (2 * Math.PI) / 51, phaseO: 0.3
+            },
+            {
+                baseX: -15, baseY: 15,
+                ampX1: 30, freqX1: (2 * Math.PI) / 70, phaseX1: 4.1,
+                ampX2: 16, freqX2: (2 * Math.PI) / 44, phaseX2: 2.8,
+                ampY1: 30, freqY1: (2 * Math.PI) / 75, phaseY1: 1.4,
+                ampY2: 14, freqY2: (2 * Math.PI) / 57, phaseY2: 3.7,
+                ampS: 0.22, freqS: (2 * Math.PI) / 68, phaseS: 4.5,
+                baseO: 0.82, ampO: 0.12, freqO: (2 * Math.PI) / 59, phaseO: 2.6
+            },
+            {
+                baseX: 20, baseY: 20,
+                ampX1: 26, freqX1: (2 * Math.PI) / 60, phaseX1: 1.1,
+                ampX2: 12, freqX2: (2 * Math.PI) / 38, phaseX2: 3.4,
+                ampY1: 24, freqY1: (2 * Math.PI) / 64, phaseY1: 2.7,
+                ampY2: 13, freqY2: (2 * Math.PI) / 43, phaseY2: 0.9,
+                ampS: 0.16, freqS: (2 * Math.PI) / 49, phaseS: 1.7,
+                baseO: 0.75, ampO: 0.12, freqO: (2 * Math.PI) / 42, phaseO: 3.8
+            },
+            {
+                baseX: -20, baseY: -15,
+                ampX1: 29, freqX1: (2 * Math.PI) / 85, phaseX1: 3.2,
+                ampX2: 14, freqX2: (2 * Math.PI) / 52, phaseX2: 1.9,
+                ampY1: 27, freqY1: (2 * Math.PI) / 80, phaseY1: 4.6,
+                ampY2: 11, freqY2: (2 * Math.PI) / 58, phaseY2: 2.4,
+                ampS: 0.19, freqS: (2 * Math.PI) / 73, phaseS: 3.3,
+                baseO: 0.80, ampO: 0.10, freqO: (2 * Math.PI) / 63, phaseO: 0.7
+            }
+        ];
+
+        let isRunning = false;
+        let animationFrameId = null;
+        const startTime = performance.now();
+
+        const animate = (timestamp) => {
+            if (document.hidden || (this.dropZone && this.dropZone.classList.contains('hidden'))) {
+                isRunning = false;
+                animationFrameId = null;
+                return;
+            }
+
+            const blobs = getBlobs();
+            if (blobs.length > 0) {
+                const t = (timestamp - startTime) * 0.001; // seconds
+                blobs.forEach((blob, i) => {
+                    const config = blobConfigs[i % blobConfigs.length];
+                    const x = config.baseX +
+                        config.ampX1 * Math.sin(t * config.freqX1 + config.phaseX1) +
+                        config.ampX2 * Math.sin(t * config.freqX2 + config.phaseX2);
+                    const y = config.baseY +
+                        config.ampY1 * Math.cos(t * config.freqY1 + config.phaseY1) +
+                        config.ampY2 * Math.sin(t * config.freqY2 + config.phaseY2);
+                    const scale = 1.05 + config.ampS * Math.sin(t * config.freqS + config.phaseS);
+                    const opacity = config.baseO + config.ampO * Math.cos(t * config.freqO + config.phaseO);
+
+                    blob.style.transform = `translate3d(${x.toFixed(2)}%, ${y.toFixed(2)}%, 0) scale(${scale.toFixed(3)})`;
+                    blob.style.opacity = opacity.toFixed(3);
+                });
+            }
+
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        this.startWallpaperAnimation = () => {
+            if (!isRunning && !document.hidden && this.dropZone && !this.dropZone.classList.contains('hidden')) {
+                isRunning = true;
+                animationFrameId = requestAnimationFrame(animate);
+            }
+        };
+
+        this.stopWallpaperAnimation = () => {
+            isRunning = false;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.stopWallpaperAnimation();
+            } else {
+                this.startWallpaperAnimation();
+            }
+        });
+
+        this.startWallpaperAnimation();
     }
 }

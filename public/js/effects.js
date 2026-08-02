@@ -275,27 +275,44 @@ export class SpecialEffectsManager {
         canvas.className = 'splatter-canvas';
         overlay.appendChild(canvas);
 
-        // Add tomato splatter icons across the screen
+        // Add tomato splatter icons across the screen using a grid so they never bunch up
         const splatterContainer = document.createElement('div');
         splatterContainer.className = 'splatter-container';
         const splatterCount = 9;
+        const gridCells = [
+            { minX: 12, maxX: 28, minY: 12, maxY: 28 },
+            { minX: 42, maxX: 58, minY: 12, maxY: 28 },
+            { minX: 72, maxX: 88, minY: 12, maxY: 28 },
+            { minX: 12, maxX: 28, minY: 42, maxY: 58 },
+            { minX: 42, maxX: 58, minY: 42, maxY: 58 },
+            { minX: 72, maxX: 88, minY: 42, maxY: 58 },
+            { minX: 12, maxX: 28, minY: 72, maxY: 88 },
+            { minX: 42, maxX: 58, minY: 72, maxY: 88 },
+            { minX: 72, maxX: 88, minY: 72, maxY: 88 }
+        ];
+        for (let i = gridCells.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [gridCells[i], gridCells[j]] = [gridCells[j], gridCells[i]];
+        }
+
         for (let i = 0; i < splatterCount; i++) {
             const splatterEl = document.createElement('div');
             splatterEl.className = 'tomato-splatter-item';
-            const randomX = Math.floor(Math.random() * 80) + 10;
-            const randomY = Math.floor(Math.random() * 75) + 10;
+            const cell = gridCells[i % gridCells.length];
+            const randomX = Math.floor(Math.random() * (cell.maxX - cell.minX + 1)) + cell.minX;
+            const randomY = Math.floor(Math.random() * (cell.maxY - cell.minY + 1)) + cell.minY;
             const randomRot = Math.floor(Math.random() * 60) - 30;
             const randomDelay = Math.floor(Math.random() * 350);
-            const randomScale = (Math.random() * 0.5 + 0.85).toFixed(2);
+            const randomScale = (Math.random() * 0.4 + 0.85).toFixed(2);
 
             splatterEl.style.left = `${randomX}%`;
             splatterEl.style.top = `${randomY}%`;
             splatterEl.style.transform = `translate(-50%, -50%) rotate(${randomRot}deg) scale(${randomScale})`;
-            splatterEl.style.animationDelay = `${randomDelay}ms`;
 
             const img = document.createElement('img');
             img.src = this.getRandomTomatoSplatter();
             img.alt = 'Rotten Tomato';
+            img.style.animationDelay = `${randomDelay}ms`;
             splatterEl.appendChild(img);
 
             splatterContainer.appendChild(splatterEl);
